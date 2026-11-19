@@ -2,7 +2,7 @@
 
 Firefox extension that brings the old YouTube layout and features back within the modern (Polymer) design.
 
-ClassicYT is a Firefox-only fork of [YouTube Redux](https://github.com/omnidevZero/YouTubeRedux) by omnidevZero (MIT licensed, see [LICENSE](LICENSE)). It needs Firefox 128 or newer and is distributed from this repository instead of addons.mozilla.org. It updates itself from here. The repository keeps the name `YouTubeRedux`.
+ClassicYT is a Firefox-only fork of [YouTube Redux](https://github.com/omnidevZero/YouTubeRedux) by omnidevZero (MIT licensed, see [LICENSE](LICENSE)). It needs Firefox 140 or newer and is distributed from this repository instead of addons.mozilla.org. It updates itself from here. The repository keeps the name `YouTubeRedux`.
 
 ## Install
 
