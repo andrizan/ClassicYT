@@ -1,7 +1,18 @@
 {
   "addons": {
     "classicyt@andrizan.github.io": {
-      "updates": []
+      "updates": [
+        {
+          "version": "3.13.0",
+          "update_link": "https://github.com/andrizan/YouTubeRedux/releases/download/v3.13.0/classicyt-3.13.0.xpi",
+          "update_hash": "sha256:06457135e20e76979fc647195a4bee69a3ffc0c2c7ecfbe375dd91aefe7a0df8",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "128.0"
+            }
+          }
+        }
+      ]
     }
   }
 }
