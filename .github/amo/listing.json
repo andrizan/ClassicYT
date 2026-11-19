@@ -1,0 +1,19 @@
+{
+  "slug": "classicyt",
+  "categories": {
+    "firefox": ["appearance", "photos-music-videos"]
+  },
+  "summary": {
+    "en-US": "Bring back the classic YouTube look: the old video page layout, logos, icons and likes bar, plus options to hide Shorts and other clutter.",
+    "id": "Hadirkan kembali tampilan YouTube klasik: tata letak halaman video lama, logo, ikon, dan bilah suka, plus opsi untuk menyembunyikan Shorts dan elemen lain."
+  },
+  "description": {
+    "en-US": "ClassicYT brings the look and feel of the classic YouTube layout back to the modern YouTube site.\n\nWhat it can do:\n• smaller video player and the old video page layout, with views, likes bar and channel info arranged like before\n• classic logos (2005 to 2017), favicons and the old filled icons\n• old likes/dislikes icons, green/red likes bar and precise like counts (works together with Return YouTube Dislike)\n• limit comments and related videos to 20 with a \"Show more\" button instead of infinite scrolling\n• the autoplay toggle back in the related videos column\n• hide Shorts, end screens, the AI summary, surveys, hashtags, chapters and many other elements\n• choose how many video thumbnails are shown per row\n• export and import your settings\n• settings in English and Bahasa Indonesia\n\nMost settings take effect after reloading the page.\n\nClassicYT is a fork of YouTube Redux by omnidevZero (MIT license), maintained for current versions of YouTube and Firefox. It does not collect or send any data.\n\nSource code: https://github.com/andrizan/YouTubeRedux",
+    "id": "ClassicYT menghadirkan kembali tampilan dan nuansa YouTube klasik di situs YouTube modern.\n\nYang bisa dilakukan:\n• pemutar video lebih kecil dan tata letak halaman video lama, dengan jumlah tayangan, bilah suka, dan info channel tersusun seperti dulu\n• logo klasik (2005 sampai 2017), favicon, dan ikon terisi gaya lama\n• ikon suka/tidak suka lama, bilah suka hijau/merah, dan angka suka yang persis (kompatibel dengan Return YouTube Dislike)\n• membatasi komentar dan video terkait menjadi 20 dengan tombol \"Tampilkan lebih banyak\" sebagai ganti gulir tanpa batas\n• tombol Putar otomatis kembali di kolom video terkait\n• menyembunyikan Shorts, layar akhir, ringkasan AI, survei, hashtag, bab, dan banyak elemen lain\n• mengatur jumlah thumbnail video per baris\n• ekspor dan impor pengaturan\n• pengaturan dalam bahasa Inggris dan Bahasa Indonesia\n\nSebagian besar pengaturan berlaku setelah halaman dimuat ulang.\n\nClassicYT adalah fork dari YouTube Redux karya omnidevZero (lisensi MIT) yang dirawat untuk versi YouTube dan Firefox terbaru. Ekstensi ini tidak mengumpulkan atau mengirim data apa pun.\n\nKode sumber: https://github.com/andrizan/YouTubeRedux"
+  },
+  "homepage": {
+    "en-US": "https://github.com/andrizan/YouTubeRedux"
+  },
+  "is_experimental": false,
+  "requires_payment": false
+}

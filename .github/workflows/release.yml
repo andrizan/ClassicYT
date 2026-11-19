@@ -1,17 +1,24 @@
 name: Release
 
-# Builds the extension, has it signed by Mozilla (unlisted), attaches the .xpi to a GitHub release and
-# records the release in updates.json. Installed copies pick it up through the update_url in manifest.json.
+# Pushing a tag v<manifest version>:
+#   1. updates the store listing from .github/amo/listing.json and submits the version to
+#      addons.mozilla.org (listed), where Mozilla reviews it;
+#   2. once approved, attaches the signed .xpi to a GitHub release and adds it to updates.json,
+#      which moves installs of the old self-hosted 3.13.x builds over to the store build.
+# Mozilla's review may take longer than the job waits. In that case run this workflow manually
+# with the version once it is approved, to do step 2.
 #
 # Required repository secrets (addons.mozilla.org -> Tools -> Manage API Keys):
 #   AMO_JWT_ISSUER, AMO_JWT_SECRET
-# Without them an unsigned build is published, which only Firefox builds with signature
-# enforcement turned off (Developer Edition, Nightly, ESR) can install.
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Approved version to publish on GitHub, e.g. 3.14.0'
+        required: true
 
 permissions:
   contents: write
@@ -20,8 +27,66 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+env:
+  WEB_EXT: web-ext@10.8.0
+
 jobs:
-  release:
+  submit:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read version
+        id: version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version="$(node -p "require('./manifest.json').version")"
+          if [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $REF_NAME does not match the manifest version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check credentials
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$AMO_JWT_ISSUER" ] || [ -z "$AMO_JWT_SECRET" ]; then
+            echo "::error::The AMO_JWT_ISSUER and AMO_JWT_SECRET secrets are required to submit to addons.mozilla.org"
+            exit 1
+          fi
+
+      - name: Lint
+        run: npx --yes "$WEB_EXT" lint
+
+      - name: Update the store listing
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: node .github/scripts/amo.mjs listing
+
+      - name: Submit to addons.mozilla.org
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # kept outside the source directory so it isn't packaged
+          node .github/scripts/amo.mjs metadata "$VERSION" "$RUNNER_TEMP/amo-metadata.json"
+          npx --yes "$WEB_EXT" sign --channel=listed --amo-metadata="$RUNNER_TEMP/amo-metadata.json" --approval-timeout=0 --artifacts-dir="$RUNNER_TEMP/web-ext"
+
+  publish:
+    needs: submit
+    if: ${{ always() && (needs.submit.result == 'success' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,65 +97,59 @@ jobs:
         with:
           node-version: 22
 
-      - name: Read version
+      - name: Resolve version
         id: version
         env:
-          REF_TYPE: ${{ github.ref_type }}
-          REF_NAME: ${{ github.ref_name }}
+          SUBMITTED: ${{ needs.submit.outputs.version }}
+          REQUESTED: ${{ inputs.version }}
         run: |
-          version="$(node -p "require('./manifest.json').version")"
-          if [ "$REF_TYPE" = "tag" ] && [ "$REF_NAME" != "v$version" ]; then
-            echo "::error::Tag $REF_NAME does not match the manifest version $version"
+          version="${SUBMITTED:-$REQUESTED}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+(\.[0-9]+){1,3}$'; then
+            echo "::error::Invalid version '$version'"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "xpi=classicyt-$version.xpi" >> "$GITHUB_OUTPUT"
 
-      - name: Lint
-        run: npx --yes web-ext@8 lint --self-hosted
-
-      - name: Build and sign
-        id: build
+      - name: Wait for Mozilla's approval and download the signed file
+        id: download
         env:
-          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
-          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-          XPI: ${{ steps.version.outputs.xpi }}
-        run: |
-          if [ -n "$WEB_EXT_API_KEY" ] && [ -n "$WEB_EXT_API_SECRET" ]; then
-            npx --yes web-ext@8 sign --channel=unlisted --artifacts-dir=dist
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::AMO_JWT_ISSUER/AMO_JWT_SECRET are not set: publishing an unsigned build that release versions of Firefox refuse to install."
-            npx --yes web-ext@8 build --artifacts-dir=dist
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-          fi
-          built="$(find dist -maxdepth 1 -type f \( -name '*.xpi' -o -name '*.zip' \) | head -n 1)"
-          test -n "$built"
-          mv "$built" "dist/$XPI"
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          VERSION: ${{ steps.version.outputs.version }}
+          WAIT_MINUTES: ${{ github.event_name == 'push' && '60' || '5' }}
+        run: node .github/scripts/amo.mjs download "$VERSION" dist --wait-minutes "$WAIT_MINUTES"
 
-      - name: Create GitHub release
+      - name: Publish GitHub release
+        if: steps.download.outputs.state == 'public'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
-          XPI: ${{ steps.version.outputs.xpi }}
-          SIGNED: ${{ steps.build.outputs.signed }}
+          FILE: ${{ steps.download.outputs.file }}
         run: |
-          notes="Install or update by opening the attached .xpi in Firefox. Installed copies update themselves."
-          if [ "$SIGNED" != "true" ]; then
-            notes="$notes"$'\n\n'"This build is NOT signed by Mozilla."
+          notes="Install from addons.mozilla.org: https://addons.mozilla.org/firefox/addon/classicyt/"$'\n\n'"The attached .xpi is the same file Mozilla signed for the store. Either way, updates come from addons.mozilla.org."
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release upload "v$VERSION" "$FILE" --clobber
+          else
+            gh release create "v$VERSION" "$FILE" --title "v$VERSION" --notes "$notes" --verify-tag
           fi
-          gh release create "v$VERSION" "dist/$XPI" --title "v$VERSION" --notes "$notes" --target "$GITHUB_SHA"
 
       - name: Publish update manifest
+        if: steps.download.outputs.state == 'public'
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          XPI: ${{ steps.version.outputs.xpi }}
+          FILE: ${{ steps.download.outputs.file }}
           BRANCH: ${{ github.event.repository.default_branch }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          # updates.json only serves the self-hosted 3.13.x builds, which still carry an update_url;
+          # the store build they move to gets its updates from addons.mozilla.org
           git fetch origin "$BRANCH"
           git checkout -B "$BRANCH" "origin/$BRANCH"
-          node .github/scripts/update-manifest.mjs "$VERSION" "https://github.com/$REPOSITORY/releases/download/v$VERSION/$XPI" "dist/$XPI"
+          node .github/scripts/update-manifest.mjs "$VERSION" "https://github.com/$REPOSITORY/releases/download/v$VERSION/$(basename "$FILE")" "$FILE"
+          if git diff --quiet -- updates.json; then
+            echo "updates.json already lists $VERSION"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add updates.json
