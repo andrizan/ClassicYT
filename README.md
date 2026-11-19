@@ -1,14 +1,14 @@
-# YouTubeRedux
+# ClassicYT
 
-Firefox extension that focuses on replicating old YouTube layout within Polymer design (modern layout).
+Firefox extension that brings the old YouTube layout and features back within the modern (Polymer) design.
 
-This is a Firefox-only fork of [omnidevZero/YouTubeRedux](https://github.com/omnidevZero/YouTubeRedux) (Firefox 128 or newer). It is distributed from this repository instead of addons.mozilla.org and updates itself from here.
+ClassicYT is a Firefox-only fork of [YouTube Redux](https://github.com/omnidevZero/YouTubeRedux) by omnidevZero (MIT licensed, see [LICENSE](LICENSE)). It needs Firefox 128 or newer and is distributed from this repository instead of addons.mozilla.org. It updates itself from here. The repository keeps the name `YouTubeRedux`.
 
 ## Install
 
 Download the `.xpi` of the latest [release](https://github.com/andrizan/YouTubeRedux/releases) and open it in Firefox.
 
-The fork has its own add-on ID, so it installs next to the addons.mozilla.org version instead of replacing it. Remove that one first; settings can be carried over with the export/import button in the settings popup.
+ClassicYT has its own add-on ID (`classicyt@andrizan.github.io`), so it installs next to YouTube Redux instead of replacing it. Remove YouTube Redux first so the two don't restyle the same page; settings can be carried over with the export/import button in the settings popup.
 
 ## Updates
 
@@ -43,3 +43,7 @@ npx web-ext lint --self-hosted
 The [release workflow](.github/workflows/release.yml) lints the extension, has it signed by Mozilla as an unlisted add-on, attaches the `.xpi` to a GitHub release and adds the release to `updates.json`.
 
 Signing needs two repository secrets, `AMO_JWT_ISSUER` and `AMO_JWT_SECRET`, created at [addons.mozilla.org → Tools → Manage API Keys](https://addons.mozilla.org/developers/addon/api/key/). Without them the workflow publishes an unsigned build, which only Firefox Developer Edition, Nightly and ESR can install (with `xpinstall.signatures.required` set to `false`).
+
+## Credits
+
+Based on [YouTube Redux](https://github.com/omnidevZero/YouTubeRedux) by omnidevZero. The donation button in the settings popup still goes to the original author.

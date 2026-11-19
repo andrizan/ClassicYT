@@ -842,7 +842,7 @@ html:not([dark]) ytd-continuation-item-renderer span[role="text"] {
     width: 168px !important;
 }
 
-/* buttons hidden by YouTube Redux (e.g. Thanks) */
+/* buttons hidden by ClassicYT (e.g. Thanks) */
 [redux-hidden] {
     display: none !important;
 }

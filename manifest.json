@@ -1,6 +1,6 @@
 {
     "manifest_version": 2,
-    "name": "YouTube Redux",
+    "name": "ClassicYT",
     "version": "3.13.0",
     "description": "__MSG_extensionDescription__",
     "default_locale": "en",
@@ -52,7 +52,7 @@
     ],
     "browser_specific_settings": {
       "gecko": {
-        "id": "youtube-redux@andrizan.github.io",
+        "id": "classicyt@andrizan.github.io",
         "strict_min_version": "128.0",
         "update_url": "https://raw.githubusercontent.com/andrizan/YouTubeRedux/master/updates.json",
         "data_collection_permissions": {

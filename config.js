@@ -41,7 +41,7 @@ document.querySelector('#export-button-file').addEventListener('click', async() 
 	if (granted) {
 		browser.downloads.download({
 			url: URL.createObjectURL(new Blob([exportArea.value], { type: "application/json" })),
-			filename: `YouTube_Redux_config_${new Date().toISOString().replaceAll(":", "-")}.json`,
+			filename: `ClassicYT_config_${new Date().toISOString().replaceAll(":", "-")}.json`,
 			saveAs: true
 		});
 	} else {

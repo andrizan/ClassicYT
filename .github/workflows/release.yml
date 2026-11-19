@@ -44,7 +44,7 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "xpi=youtube_redux-$version.xpi" >> "$GITHUB_OUTPUT"
+          echo "xpi=classicyt-$version.xpi" >> "$GITHUB_OUTPUT"
 
       - name: Lint
         run: npx --yes web-ext@8 lint --self-hosted
