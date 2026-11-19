@@ -57,17 +57,10 @@
         [hidden] {
             display: none !important;
         }
-        ::-webkit-scrollbar {
-			background: transparent;
-			width: 8px !important;
-		}
-		::-webkit-scrollbar-thumb {
-			height: 56px;
-			border-radius: 4px !important;
-			border: 0px solid transparent !important;
-			background-clip: content-box;
-			background-color: rgba(128, 128, 128, 0.25);
-		}
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(128, 128, 128, 0.25) transparent;
+        }
         .marquee {
             animation: scroll 10s linear 0s infinite;
             font-size: 10px;
@@ -171,24 +164,35 @@
             margin-left: 5px;
         }
       </style>
-      <script src="./initial-setup.js"></script>
     </head>
     <body>
-        <a href="https://github.com/omnidevZero/YouTubeRedux" class="github-logo">
+        <a href="https://github.com/andrizan/YouTubeRedux" class="github-logo">
             <div>
-                <img src="./images/github-logo.png"></img>
+                <img src="./images/github-logo.png">
             </div>
-            <div>
-                GitHub repo
-            </div>
+            <div data-i18n="githubRepo"></div>
         </a>
         <div>
-            <div id="youtube-redux-header">YouTube Redux has been updated<span id="version"></span>!</div>
-            <label class="toggle-label"><input type="checkbox" name="showChangelog" class="settings toggle"></input><span aria-label="Show changelog on updates"><div class="pointer">👈</div></span></label>
+            <div id="youtube-redux-header"></div>
+            <label class="toggle-label"><input type="checkbox" name="showChangelog" class="settings toggle"><span data-i18n-aria-label="changelogToggle"><div class="pointer">👈</div></span></label>
             <div id="main">
-                <div class="header-main" style="margin-top:20px;">What's new?</div> 
+                <div class="header-main" style="margin-top:20px;" data-i18n="whatsNew"></div>
                 <div id="changes">
                     <ul>
+                        <div class="update"><div>3.13.0</div><div>19.11.2026</div></div>
+                        <li>the extension is now Firefox only and updates itself from its GitHub repository</li>
+                        <li>added a language setting for the extension with English and Indonesian (Bahasa Indonesia)</li>
+                        <li>performance: replaced the polling timers on the video page with observers and YouTube's navigation events</li>
+                        <li>performance: the video page is laid out around the small player with CSS instead of repeated measuring, which also fixes the player staying shrunk after the window was resized</li>
+                        <li>performance: styles of disabled settings are no longer generated and the settings are read from storage once per page</li>
+                        <li>updated styles to YouTube's renamed elements (video cards, channel tabs, thumbnail badges, click animations) and removed styles for elements YouTube no longer ships</li>
+                        <li>related video titles keep their usual size when YouTube serves its larger experimental one</li>
+                        <li>fixed the "Use alternative video page strings" setting renaming the wrong button and made the "Thanks" visibility setting independent of the icon set</li>
+                        <li>fixed the "Related videos age" visibility setting also hiding the view count</li>
+                        <li>hiding shorts in search results no longer needs scripting</li>
+                        <li>changing the number of thumbnails per row is applied without refreshing the page</li>
+                        <li>fixed the settings popup forgetting custom values of the small player size and the title font</li>
+                        <li>removed the code for the Trending page that YouTube shut down</li>
                         <div class="update"><div>3.12.0</div><div>03.05.2026</div></div>
                         <li>made it <a class="point-link" href="#">even more obvious</a> that showing this page can be disabled</li>
                         <li>made the "Hide features > Related videos age" setting disabled by default</li>
@@ -815,9 +819,12 @@
                     </ul>
                 </div>
                 <iframe id="changes-iframe" src="./popup.html" style="position:relative; top:0; left:0; min-width: 581px; max-width: 581px; min-height: 460px; margin-top: 10px; border: 1px solid black;" frameborder=0 height="100%"></iframe>
-                <div class="header-main" style="margin-top:20px;">You can access these settings via the extension's icon next to the address bar</div> 
+                <div class="header-main" style="margin-top:20px;" data-i18n="settingsHint"></div>
             </div>
         </div>
+        <script src="./helpers/settings.js"></script>
+        <script src="./helpers/i18n.js"></script>
+        <script src="./helpers/i18n-ui.js"></script>
         <script src="./changelog.js"></script>
     </body>
   </html>

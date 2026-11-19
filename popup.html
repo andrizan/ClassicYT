@@ -67,24 +67,6 @@
         label {
             margin: 2px 0px 2px 0px;
         }
-        .outer-warning {
-            position:absolute;
-            top:6px;
-            left:0;
-            height:calc(100% - 6px);
-            width:100%;
-            display:table;
-            background-color: rgb(255,255,255,0.75);
-        }
-        .warning {
-            font-style: italic;
-            font-weight: bold;
-            font-size:16px;
-            margin: 30px 0px 30px 0px;
-            display:table-cell;
-            vertical-align: middle;
-            pointer-events: none;
-        }
         .mini {
             max-width: 30px;
         }
@@ -140,12 +122,9 @@
             overflow-y: auto;
             overflow-x: hidden;
         }
-        .tooltip-text::-webkit-scrollbar {
-            width: 5px;
-        }
-        .tooltip-text::-webkit-scrollbar-thumb {
-            background-color: white;
-            border-radius: 5px;
+        .tooltip-text {
+            scrollbar-width: thin;
+            scrollbar-color: white transparent;
         }
         .tooltip-text-small {
             display: none;
@@ -164,6 +143,12 @@
         }
         .tooltip:hover .tooltip-text, .tooltip:hover .tooltip-text-small {
             display: block;
+        }
+        .tooltip-text, .tooltip-text-small {
+            white-space: pre-line;
+        }
+        .tooltip-warning-text {
+            color: yellow;
         }
 
         .tooltip .tooltip-text::after, .tooltip .tooltip-text-small::after {
@@ -275,43 +260,6 @@
             min-height: 35px;
             height: auto;
         }
-        .browser-warning {
-            display: none;
-        }
-        .browser-warning-text::before {
-            content: "!";
-            color:red;
-            border: 1px solid grey;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            display: inline-flex;
-            justify-content: center;
-            font-weight: 800;
-            align-items: center;
-            margin-left: 5px;
-            margin-right: 5px;
-        }
-        .browser-warning-text {
-            color: white;
-            position: absolute;
-            border-radius: 4px;
-            max-width: 200px;
-        }
-        .browser-warning-text::after {
-            content: "Current version of your browser is significantly outdated. Some features (like changing logo or certain styles) may not work correctly.";
-            font-size: 10px;
-            display: none;
-            padding: 4px;
-            z-index:1;
-            position: absolute;
-            width:200px;
-            border-radius: 4px;
-            background-image: linear-gradient(135deg, rgb(112, 111, 111), black);
-        }
-        .browser-warning:hover > .browser-warning-text::after {
-            display: inline-block;
-        }
         .multi-field {
             align-items: center;
             display: flex;
@@ -352,12 +300,9 @@
             position: relative;
             margin-right: 2px;
         }
-        .scrollable::-webkit-scrollbar {
-            width: 4px;
-        }
-        .scrollable::-webkit-scrollbar-thumb {
-            background-color: rgba(155, 155, 155, 0.5);
-            border-radius: 4px;
+        .scrollable {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
         }
         fieldset > div.scrollable {
             max-height: 70px;
@@ -398,8 +343,16 @@
         .top-buttons button {
             padding: 0 4px 0 4px;
         }
-        #github-button {
+        #language {
             margin-right: auto;
+            max-width: 130px;
+            color: #606060;
+        }
+        #version {
+            align-self: center;
+            margin-right: 4px;
+            font-size: 10px;
+            color: grey;
         }
         #github-button img {
             height: 20px;
@@ -428,36 +381,40 @@
       </style>
     </head>
     <body>
-        <div class="browser-warning"><div class="browser-warning-text"></div></div>
         <div class="top-buttons">
-            <button id="github-button" title="GitHub repository"><img src="/images/github-logo.png"></img></button>
-            <button id="export-config" title="Export/import config"><img src="/images/export-icon.svg"></img></button>
-            <button id="restore-defaults" title="Restore defaults"><img src="/images/restore-defaults-icon.svg"></img></button>
+            <button id="github-button" data-i18n-title="titleGithub"><img src="/images/github-logo.png"></button>
+            <select id="language" name="language" class="settings" data-i18n-title="languageTitle">
+                <option value="auto" data-i18n="languageAuto"></option>
+                <option value="en">English</option>
+                <option value="id">Bahasa Indonesia</option>
+            </select>
+            <span id="version"></span>
+            <button id="export-config" data-i18n-title="titleExport"><img src="/images/export-icon.svg"></button>
+            <button id="restore-defaults" data-i18n-title="titleRestore"><img src="/images/restore-defaults-icon.svg"></button>
         </div>
         <div id="header"><span>YouTube Redux</span></div>
         <fieldset style="position:relative; border: none;">
-            <legend>Settings</legend>
-            <div style="text-align:center; display:none; z-index:99" class="outer-warning"><div class="warning"><span style="color:red;"></span><span style="color:black;">PLEASE VISIT YOUTUBE IN ORDER TO CHANGE SETTINGS</div></div>
+            <legend data-i18n="settingsLegend"></legend>
             <div id="pages-wrapper" style="overflow-x: clip;">
                 <div id="all-pages" active-page="1">
                     <div id="page-1" class="page">
                         <div style="flex: 0 0 50%; overflow-y: auto; max-height: 280px;" class="scrollable">
-                            <redux>General</redux>
-                            <label>Number of video thumbnails per row<div class="tooltip"><span class="tooltip-text-small">Affects home, channel and subscriptions pages</span></span></div><input type="range" min="1" max="10" name="gridItems" class="settings"><span><input class="mini settings slider-control" type="number" min="1" max="10"></input></span></label>
-                            <label><input type="checkbox" name="extraLayout" class="settings">Extra layout changes<div class="tooltip"><span class="tooltip-text-small">Adds more classic styles to multiple pages in order to match the old layout more closely.<br><span style="color:yellow">Disabling this setting may cause incompatibility with other settings.</span></span></div></label>
+                            <redux data-i18n="secGeneral"></redux>
+                            <label><span data-i18n="gridItems"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="gridItemsTip"></span></div><input type="range" min="1" max="10" name="gridItems" class="settings"><span><input class="mini settings slider-control" type="number" min="1" max="10"></span></label>
+                            <label><input type="checkbox" name="extraLayout" class="settings"><span data-i18n="extraLayout"></span><div class="tooltip"><span class="tooltip-text-small"><span data-i18n="extraLayoutTip"></span><br><span class="tooltip-warning-text" data-i18n="extraLayoutWarn"></span></span></div></label>
                             <div class="subsettings-container">
-                                <label class="subsetting"><input type="checkbox" name="extraComments" class="settings" disabled>Restore old comments styles</label>
-                                <label class="subsetting"><input type="checkbox" name="darkerRed" class="settings" disabled>Use darker red color</label>
-                                <label class="subsetting"><input type="checkbox" name="noHomeScalingRe" class="settings" disabled>No homepage scaling<div class="tooltip"><span class="tooltip-text-small">When enabled it will prevent reducing empty space at the sides of the homepage which scales down with window size - page will retain its left/right padding.</span></div></label>
-                                <label class="subsetting"><input type="checkbox" name="extraSidebarStyles" class="settings" disabled>Additional sidebar changes</label>
+                                <label class="subsetting"><input type="checkbox" name="extraComments" class="settings" disabled><span data-i18n="extraComments"></span></label>
+                                <label class="subsetting"><input type="checkbox" name="darkerRed" class="settings" disabled><span data-i18n="darkerRed"></span></label>
+                                <label class="subsetting"><input type="checkbox" name="noHomeScalingRe" class="settings" disabled><span data-i18n="noHomeScaling"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="noHomeScalingTip"></span></div></label>
+                                <label class="subsetting"><input type="checkbox" name="extraSidebarStyles" class="settings" disabled><span data-i18n="extraSidebarStyles"></span></label>
                             </div>
-                            <label><input type="checkbox" name="playlistsFirst" class="settings">Playlists grouping on homepage</label>
+                            <label><input type="checkbox" name="playlistsFirst" class="settings"><span data-i18n="playlistsFirst"></span></label>
                             <div class="subsettings-container">
-                                <label class="subsetting"><input type="checkbox" name="sortFoundPlaylists" class="settings" disabled>Strict grouping<div class="tooltip"><span class="tooltip-text-small">While scrolling down the homepage, newly found playlists will be automatically grouped with others.</span></div></label>
+                                <label class="subsetting"><input type="checkbox" name="sortFoundPlaylists" class="settings" disabled><span data-i18n="sortFoundPlaylists"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="sortFoundPlaylistsTip"></span></div></label>
                             </div>
-                            <redux>Video Page</redux>
+                            <redux data-i18n="secVideoPage"></redux>
                             <label style="display:inline-block">
-                                <input type="checkbox" name="smallPlayer" class="settings">Use small video player
+                                <input type="checkbox" name="smallPlayer" class="settings"><span data-i18n="smallPlayer"></span>
                                 <label style="display:inline-block"><select name="smallPlayerWidth" class="settings">
                                     <option value=427></option>
                                     <option value=640></option>
@@ -465,57 +422,52 @@
                                     <option value=853 style="background-color: #dbe1f8;"></option>
                                     <option value=938></option>
                                     <option value=1066></option>
-                                    <option value=Custom>Custom...</option>
+                                    <option value=Custom></option>
                                     </select>
-                                    <div class="tooltip" style="right: 1px;"><span class="tooltip-text">Player height displayed here is calculated for 16:9 aspect ratio and is based on width value. Actual height may differ based on your display.</span></div>
+                                    <div class="tooltip" style="right: 1px;"><span class="tooltip-text" data-i18n="smallPlayerTip"></span></div>
                                 </label>
                             </label>
                             <div class="subsettings-container">
-                                <label class="subsetting"><input type="checkbox" name="blackBars" class="settings" disabled>Use pillarboxing<div class="tooltip"><span class="tooltip-text-small">Adds black bars to the sides of low aspect ratio videos (e.g. 4:3).</span></div></label>
-                            </div>
-                            <label hidden><input type="checkbox" name="altVideoLayout" class="settings">Use alternative video page layout<div class="tooltip"><span class="tooltip-text">Positions video title and channel info above the player and rearranges buttons below the player. Best used with 'Use dark theme for playlists' option disabled. <br><span style="color:yellow">Rearranging buttons is currently not compatible with Return YouTube Dislike.</span></span></div></label>
-                            <div hidden class="subsettings-container">
-                                <label class="subsetting"><input type="checkbox" name="altVideoLayoutExtra" class="settings" disabled>Also rearrange likes/dislikes</label>
+                                <label class="subsetting"><input type="checkbox" name="blackBars" class="settings" disabled><span data-i18n="blackBars"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="blackBarsTip"></span></div></label>
                             </div>
                         </div>
                         <div style="flex: 0 0 50%;">
-                            <label><input type="checkbox" name="disableInfiniteScrolling" class="settings">Disable infinite scrolling<div class="tooltip"><span class="tooltip-text-small">Limits displayed comments and related videos to 20 items. More will load upon clicking the 'SHOW MORE' button.</span></div></label>
-                            <label><input type="checkbox" name="autoConfirm" class="settings">Auto confirm 'Video paused' popup</label>
-                            <label><input type="checkbox" name="showRawValues" class="settings">Show precise values for likes/dislikes<div class="tooltip"><span class="tooltip-text-small">E.g.: changes the displayed value of likes from 6K to 6312.</span></div></label>
-                            <label><input type="checkbox" name="classicLikesColors" class="settings">Use green/red colors for likes/dislikes bar</label>
-                            <label><input type="checkbox" name="classicLikesIconColors" class="settings">Use green/red colors for likes/dislikes buttons</label>
-                            <label><input type="checkbox" name="classicLikesStyle" class="settings">Use old icons for likes/dislikes</label>
-                            <label><input type="checkbox" name="darkPlaylist" class="settings">Use dark theme for playlists</label>
-                            <label><input type="checkbox" name="immersiveFullscreen" class="settings">Immersive fullscreen mode<div class="tooltip"><span class="tooltip-text-small">While in fullscreen mode hides everything besides the exit button.</span></div></label>
-                            <label hidden><input type="checkbox" name="trueFullscreen" class="settings">True fullscreen mode<div class="tooltip"><span class="tooltip-text-small">Prevents scrolling while in fullscreen mode.</span></div></label>
-                            <label><input type="checkbox" name="subBorder" class="settings">Add border around subscribers count</label>
-                            <label><input type="checkbox" name="trimSubs" class="settings">Trim subscribers count<div class="tooltip"><span class="tooltip-text-small">Trims the subscribers count text so that it only contains the number. May not be compatible with all languages.</span></div></label>
-                            <label><input type="checkbox" name="trimViews" class="settings">Trim view count</label>
-                            <label><input type="checkbox" name="altStrings" class="settings">Use alternative video page strings<div class="tooltip"><span class="tooltip-text-small">Changes 'Save' button to 'Add to', adds 'Published on' to the upload date (will conflict with stream start date). Modified strings will be in English.</span></div></label>
-                            <label><input type="checkbox" name="noPlayerActionAnimations" class="settings">Disable video player action animations<div class="tooltip"><span class="tooltip-text-small">Hide animations when pausing, resuming and skipping forward/backward (displayed in the center of the player).</span></div></label>    
-                            <label><input type="checkbox" name="moveAutoplay" class="settings">Move Auto-play back to related videos</label>
-                            <label><input type="checkbox" name="disableMiniplayer" class="settings">Disable miniplayer</label>
+                            <label><input type="checkbox" name="disableInfiniteScrolling" class="settings"><span data-i18n="disableInfiniteScrolling"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="disableInfiniteScrollingTip"></span></div></label>
+                            <label><input type="checkbox" name="autoConfirm" class="settings"><span data-i18n="autoConfirm"></span></label>
+                            <label><input type="checkbox" name="showRawValues" class="settings"><span data-i18n="showRawValues"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="showRawValuesTip"></span></div></label>
+                            <label><input type="checkbox" name="classicLikesColors" class="settings"><span data-i18n="classicLikesColors"></span></label>
+                            <label><input type="checkbox" name="classicLikesIconColors" class="settings"><span data-i18n="classicLikesIconColors"></span></label>
+                            <label><input type="checkbox" name="classicLikesStyle" class="settings"><span data-i18n="classicLikesStyle"></span></label>
+                            <label><input type="checkbox" name="darkPlaylist" class="settings"><span data-i18n="darkPlaylist"></span></label>
+                            <label><input type="checkbox" name="immersiveFullscreen" class="settings"><span data-i18n="immersiveFullscreen"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="immersiveFullscreenTip"></span></div></label>
+                            <label hidden><input type="checkbox" name="trueFullscreen" class="settings"><span data-i18n="trueFullscreen"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="trueFullscreenTip"></span></div></label>
+                            <label><input type="checkbox" name="subBorder" class="settings"><span data-i18n="subBorder"></span></label>
+                            <label><input type="checkbox" name="trimSubs" class="settings"><span data-i18n="trimSubs"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="trimSubsTip"></span></div></label>
+                            <label><input type="checkbox" name="trimViews" class="settings"><span data-i18n="trimViews"></span></label>
+                            <label><input type="checkbox" name="altStrings" class="settings"><span data-i18n="altStrings"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="altStringsTip"></span></div></label>
+                            <label><input type="checkbox" name="noPlayerActionAnimations" class="settings"><span data-i18n="noPlayerActionAnimations"></span><div class="tooltip"><span class="tooltip-text-small" data-i18n="noPlayerActionAnimationsTip"></span></div></label>
+                            <label><input type="checkbox" name="moveAutoplay" class="settings"><span data-i18n="moveAutoplay"></span></label>
+                            <label><input type="checkbox" name="disableMiniplayer" class="settings"><span data-i18n="disableMiniplayer"></span></label>
                         </div>
                     </div>
                     <div id="page-2" class="page">
                         <div style="flex: 0 0 50%; overflow-y: auto; max-height: 290px;" class="scrollable">
-                            <redux>Misc</redux>
-                            <label><input type="checkbox" name="compatibleDislikesRe" class="settings">Return YouTube Dislike compatibility<div class="tooltip"><span class="tooltip-text"><br><br>Makes video page compatible with Return YouTube Dislike extension. Disable when experiencing issues with dislikes counter or bar.</span></div>
-                            </label>
-                            <label><input type="checkbox" name="redirectShorts" class="settings">Redirect shorts to default video page</label>
-                            <label><input type="checkbox" name="oldIcons" class="settings">Restore old icons<div class="tooltip"><span class="tooltip-text">Changes current flat/hollow icons to their old inverted/filled versions. Affects sidebar, video page, header icons and more.</span></div></label>
-                            <label><input type="checkbox" name="altUploadIcon" class="settings">Use old upload icon</label>
-                            <label><input type="checkbox" name="extraChannel" class="settings">Extra channel page changes</label>
-                            <label><input type="checkbox" name="squareAvatar" class="settings">Make own avatar square shaped</label>
-                            <label><input type="checkbox" name="squareSubs" class="settings">Make subs avatars square shaped</label>
-                            <label><input type="checkbox" name="squareSearch" class="settings">Make avatars in search results square shaped</label>
-                            <label><input type="checkbox" name="squareComments" class="settings">Make avatars in comments square shaped</label>
-                            <label><input type="checkbox" name="altLoader" class="settings">Use alternative video loader</label>
+                            <redux data-i18n="secMisc"></redux>
+                            <label><input type="checkbox" name="compatibleDislikesRe" class="settings"><span data-i18n="compatibleDislikes"></span><div class="tooltip"><span class="tooltip-text" data-i18n="compatibleDislikesTip"></span></div></label>
+                            <label><input type="checkbox" name="redirectShorts" class="settings"><span data-i18n="redirectShorts"></span></label>
+                            <label><input type="checkbox" name="oldIcons" class="settings"><span data-i18n="oldIcons"></span><div class="tooltip"><span class="tooltip-text" data-i18n="oldIconsTip"></span></div></label>
+                            <label><input type="checkbox" name="altUploadIcon" class="settings"><span data-i18n="altUploadIcon"></span></label>
+                            <label><input type="checkbox" name="extraChannel" class="settings"><span data-i18n="extraChannel"></span></label>
+                            <label><input type="checkbox" name="squareAvatar" class="settings"><span data-i18n="squareAvatar"></span></label>
+                            <label><input type="checkbox" name="squareSubs" class="settings"><span data-i18n="squareSubs"></span></label>
+                            <label><input type="checkbox" name="squareSearch" class="settings"><span data-i18n="squareSearch"></span></label>
+                            <label><input type="checkbox" name="squareComments" class="settings"><span data-i18n="squareComments"></span></label>
+                            <label><input type="checkbox" name="altLoader" class="settings"><span data-i18n="altLoader"></span></label>
                             <div class="subsettings-container">
-                                <label class="subsetting"><input type="checkbox" name="altLoaderSmaller" class="settings" disabled>Smaller!</label>
+                                <label class="subsetting"><input type="checkbox" name="altLoaderSmaller" class="settings" disabled><span data-i18n="altLoaderSmaller"></span></label>
                             </div>
                             <label style="display:inline-block">
-                                <input type="checkbox" name="customTitleFont" class="settings">Custom video title font
+                                <input type="checkbox" name="customTitleFont" class="settings"><span data-i18n="customTitleFont"></span>
                                 <label style="display:inline-block">
                                     <select name="titleFontValue" class="settings">
                                         <option value=Arial>Arial</option>
@@ -525,21 +477,21 @@
                                         <option value=Helvetica>Helvetica</option>
                                         <option value=Lato>Lato</option>
                                         <option value="Century Gothic">Cent.Gothic</option>
-                                        <option value=Custom>Custom...</option>
+                                        <option value=Custom data-i18n="custom"></option>
                                     </select>
                                 </label>
                             </label>
-                            <label><input type="checkbox" name="collapseSidebar" class="settings">Fully collapse sidebar on homepage</label>
-                            <label><input type="checkbox" name="disableVideoPreview" class="settings">Disable video preview<div class="tooltip"><span class="tooltip-text">Hovering over video thumbnails will no longer play a short preview.</span></div></label>
-                            <label><input type="checkbox" name="autoExpandSidebarSections" class="settings">Auto expand sidebar sections</label>
-                            <label><input type="checkbox" name="ignoreAmbientAdjustment" class="settings">Ignore adjusting to Ambient Mode<div class="tooltip"><span class="tooltip-text">When enabled the extension will no longer adjust the main window's background to be visually compatible with video player's Ambient Mode.</span></div></label>
+                            <label><input type="checkbox" name="collapseSidebar" class="settings"><span data-i18n="collapseSidebar"></span></label>
+                            <label><input type="checkbox" name="disableVideoPreview" class="settings"><span data-i18n="disableVideoPreview"></span><div class="tooltip"><span class="tooltip-text" data-i18n="disableVideoPreviewTip"></span></div></label>
+                            <label><input type="checkbox" name="autoExpandSidebarSections" class="settings"><span data-i18n="autoExpandSidebarSections"></span></label>
+                            <label><input type="checkbox" name="ignoreAmbientAdjustment" class="settings"><span data-i18n="ignoreAmbientAdjustment"></span><div class="tooltip"><span class="tooltip-text" data-i18n="ignoreAmbientAdjustmentTip"></span></div></label>
                         </div>
                         <div style="flex: 0 0 50%;">
                             <redux style="margin: 5px 0 5px 0;"></redux>
-                            <label><input type="checkbox" name="showChangelog" class="settings">Show <a href="./changelog.html" target="_blank">changelog</a> on updates</label>
-                            <label><input type="checkbox" name="rearrangeInfo2" class="settings">Recreate old video page layout<div class="tooltip"><span class="tooltip-text">Unchecking this option will disable video page layout rearrangement caused by YouTube Redux - Polymer (modern/default) layout will be used.</span></div></label>
-                            <fieldset style="padding-top: 0; padding-bottom: 0; position: relative;"><legend>Logo</legend>
-                                <div class="logo-preview"><img src='' style="height: 100%; width: 100%;"></img></div>
+                            <label><input type="checkbox" name="showChangelog" class="settings"><span data-i18n="showChangelogPre"></span><a href="./changelog.html" target="_blank" data-i18n="showChangelogLink"></a><span data-i18n="showChangelogPost"></span></label>
+                            <label><input type="checkbox" name="rearrangeInfo2" class="settings"><span data-i18n="rearrangeInfo"></span><div class="tooltip"><span class="tooltip-text" data-i18n="rearrangeInfoTip"></span></div></label>
+                            <fieldset style="padding-top: 0; padding-bottom: 0; position: relative;"><legend data-i18n="logoLegend"></legend>
+                                <div class="logo-preview"><img src='' style="height: 100%; width: 100%;"></div>
                                 <div style="text-align: center; display:flex; justify-content: center; align-items: center; flex-wrap: wrap;">
                                     <label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=XL style="display:inline-block;">XL</label>
                                     <label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2005 style="display:inline-block;">2005</label>
@@ -547,88 +499,62 @@
                                     <label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2011 style="display:inline-block;">2011</label>
                                     <label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2013 style="display:inline-block;">2013</label>
                                     <br>
-									<label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2015 style="display:inline-block;">2015</label>
+                                    <label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2015 style="display:inline-block;">2015</label>
                                     <label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2015alt style="display:inline-block;">2015 (alt)</label>
-									<label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2017 style="display:inline-block;">2017</label>
+                                    <label class="logo-label"><input type="radio" name="classicLogoChoice" class="settings" value=2017 style="display:inline-block;">2017</label>
                                 </div>
-                            </fieldset>  
+                            </fieldset>
                             <fieldset style="padding-top: 0; padding-bottom: 0;">
-                                <legend>Favicon</legend>
+                                <legend data-i18n="faviconLegend"></legend>
                                 <div style="text-align:center;">
-                                    <input type="radio" name="favicon" class="settings" value="1" style="display:inline-block;"><img src='/images/favicon1.ico' style="height:16px; width:16px"></img></input>
-                                    <input type="radio" name="favicon" class="settings" value="2" style="display:inline-block;"><img src='/images/favicon2.png' style="height:16px; width:16px"></img></input>
-                                    <input type="radio" name="favicon" class="settings" value="3" style="display:inline-block;"><img src='/images/favicon3.ico' style="height:16px; width:16px"></img></input>
+                                    <input type="radio" name="favicon" class="settings" value="1" style="display:inline-block;"><img src='/images/favicon1.ico' style="height:16px; width:16px">
+                                    <input type="radio" name="favicon" class="settings" value="2" style="display:inline-block;"><img src='/images/favicon2.png' style="height:16px; width:16px">
+                                    <input type="radio" name="favicon" class="settings" value="3" style="display:inline-block;"><img src='/images/favicon3.ico' style="height:16px; width:16px">
                                 </div>
                             </fieldset>
-                            <fieldset style="padding-top: 0; padding-bottom: 0;"><legend>Video filter settings<div class="tooltip" style="right: 1px;"><span class="tooltip-text-small">• Mini scales all filters down.<br>• No home: hides video filters on homepage<br>• No video: hides video filters on video page</span></div></legend>
+                            <fieldset style="padding-top: 0; padding-bottom: 0;"><legend><span data-i18n="filterLegend"></span><div class="tooltip" style="right: 1px;"><span class="tooltip-text-small" data-i18n="filterTip"></span></div></legend>
                                 <div style="text-align: center">
-                                    <label style="display:inline-block"><input type="checkbox" name="filterMiniRe" class="settings">Mini</label>
-                                    <label style="display:inline-block"><input type="checkbox" name="filterMainRe" class="settings">No home</label>
-                                    <label style="display:inline-block"><input type="checkbox" name="filterVideo" class="settings">No video</label>
+                                    <label style="display:inline-block"><input type="checkbox" name="filterMiniRe" class="settings"><span data-i18n="filterMini"></span></label>
+                                    <label style="display:inline-block"><input type="checkbox" name="filterMainRe" class="settings"><span data-i18n="filterNoHome"></span></label>
+                                    <label style="display:inline-block"><input type="checkbox" name="filterVideo" class="settings"><span data-i18n="filterNoVideo"></span></label>
                                 </div>
                             </fieldset>
-                            <label hidden><input type="checkbox" name="completedSettingsTutorial" class="settings">User has completed settings tutorial</label>
+                            <label hidden><input type="checkbox" name="completedSettingsTutorial" class="settings"></label>
                         </div>
                     </div>
                     <div id="page-3" class="page">
                         <div style="display: flex; flex-direction: column;">
-                            <redux style="margin: 5px 0 5px 0;">Features visibility
+                            <redux style="margin: 5px 0 5px 0;"><span data-i18n="secVisibility"></span>
                                 <div class="tooltip" style="right: 1px; font-weight: normal; font-family: unset;">
-                                    <span class="tooltip-text" style="font-weight: normal; transform: translateY(-5%);">If not enabled:
-                                        <br>• Shorts - removes the button from homepage and hides shorts in search results
-                                        <br>• Related videos age - removes this info (time since upload date) from related videos
-                                        <br>• Auto-play - removes the button from video player controls
-                                        <br>• Play on TV - removes the button from video player controls; AKA the Cast button which allows you to cast video to the paired TV
-                                        <br>• Join - removes the button from channel actions under the video player
-                                        <br>• Thanks - removes the button from video actions under the video player
-                                        <br>• Channel avatars on homepage - no effect when 'Extra layout changes' setting is enabled, which already hides channel avatars
-                                        <br>• Search with your voice - removes the button to the right of the search bar
-                                        <br>• Description extras - removes all extra info from video description
-                                        <br>• Video categories - removes this info from video description
-                                        <br>• Country code - removes this info from YouTube logo
-                                        <br>• Dislikes - removes the dislike button and count from video page
-                                        <br>• Download - removes the button from video page
-                                        <br>• Chapters in description - removes the chapters section from video description
-                                        <br>• Chapters in search - removes the chapters section from search results
-                                        <br>• Heatmap - removes the heatmap from above the video progress bar
-                                        <br>• Surveys - removes random surveys asking how would you rate certain videos and nudges for features activation
-                                        <br>• Homepage avatars - removes homepage channel avatars below video thumbnails
-                                        <br>• Mix Thumbnail Stack - removes visual indicators on top of video thumbnails that show it's a mix
-                                        <br>• Click animations - removes background animations of buttons when clicking on them (shadow, ripple, filleffects etc.)
-                                        <br>• Hashtags - removes hashtag links from video title and/or description header
-                                        <br>• Ticket shelf - removes ticket shelf section from video page
-                                        <br>• AI summary - removes AI summary section from video page
-                                        <br>• End Screen - removes end screen cards (thumbnails linking to other creator's videos) from the end of a video
-                                        <br>• Extra search categories - removes categories like "Channels new to you", "Previously watched", "From related searches" from search results
-                                    </span>
+                                    <span class="tooltip-text" style="font-weight: normal; transform: translateY(-5%);" data-i18n="visibilityTip"></span>
                                 </div>
                             </redux>
                             <div style="padding-top: 0; padding-bottom: 0; display:flex; flex-basis: 100%;" class="hide">
                                 <div style="display: flex; width: 100%; justify-content: center; flex-wrap: wrap;" class="scrollable">
-                                    <label class="toggle-label"><input type="checkbox" name="hideShorts" class="settings toggle"></input><span aria-label="Shorts"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideRelatedVideoAgeRe" class="settings toggle"></input><span aria-label="Related videos age"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideAutoplayButton" class="settings toggle"></input><span aria-label="Auto-play"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideVoiceSearch" class="settings toggle"></input><span aria-label="Search with your voice"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideCastButton" class="settings toggle"></input><span aria-label="Play on TV"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideJoinButton" class="settings toggle"></input><span aria-label="Join"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideThanks" class="settings toggle"></input><span aria-label="Thanks"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideDescriptionExtras" class="settings toggle"></input><span aria-label="Description extras"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideVideoCategory" class="settings toggle"></input><span aria-label="Video categories"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideChaptersInDescription" class="settings toggle"></input><span aria-label="Chapters in description"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideChaptersInSearch" class="settings toggle"></input><span aria-label="Chapters in search"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideCountryCode" class="settings toggle"></input><span aria-label="Country code"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideDislikes" class="settings toggle"></input><span aria-label="Dislikes"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideDownload" class="settings toggle"></input><span aria-label="Download"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideHeatmap" class="settings toggle"></input><span aria-label="Heatmap"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideSurveys" class="settings toggle"></input><span aria-label="Surveys"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideHomeChannelAvatars" class="settings toggle"></input><span aria-label="Homepage avatars"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideMixTopStack" class="settings toggle"></input><span aria-label="Mix Thumbnail Stack"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideClickAnimations" class="settings toggle"></input><span aria-label="Click animations"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideHashtags" class="settings toggle"></input><span aria-label="Hashtags"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideTicketShelf" class="settings toggle"></input><span aria-label="Ticket shelf"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideAISummary" class="settings toggle"></input><span aria-label="AI summary"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideEndScreen" class="settings toggle"></input><span aria-label="End Screen"></span></label>
-                                    <label class="toggle-label"><input type="checkbox" name="hideExtraSearchCategories" class="settings toggle"></input><span aria-label="Extra search categories"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideShorts" class="settings toggle"><span data-i18n-aria-label="visShorts"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideRelatedVideoAgeRe" class="settings toggle"><span data-i18n-aria-label="visRelatedAge"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideAutoplayButton" class="settings toggle"><span data-i18n-aria-label="visAutoplay"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideVoiceSearch" class="settings toggle"><span data-i18n-aria-label="visVoiceSearch"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideCastButton" class="settings toggle"><span data-i18n-aria-label="visCast"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideJoinButton" class="settings toggle"><span data-i18n-aria-label="visJoin"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideThanks" class="settings toggle"><span data-i18n-aria-label="visThanks"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideDescriptionExtras" class="settings toggle"><span data-i18n-aria-label="visDescriptionExtras"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideVideoCategory" class="settings toggle"><span data-i18n-aria-label="visVideoCategory"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideChaptersInDescription" class="settings toggle"><span data-i18n-aria-label="visChaptersDescription"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideChaptersInSearch" class="settings toggle"><span data-i18n-aria-label="visChaptersSearch"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideCountryCode" class="settings toggle"><span data-i18n-aria-label="visCountryCode"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideDislikes" class="settings toggle"><span data-i18n-aria-label="visDislikes"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideDownload" class="settings toggle"><span data-i18n-aria-label="visDownload"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideHeatmap" class="settings toggle"><span data-i18n-aria-label="visHeatmap"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideSurveys" class="settings toggle"><span data-i18n-aria-label="visSurveys"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideHomeChannelAvatars" class="settings toggle"><span data-i18n-aria-label="visHomeAvatars"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideMixTopStack" class="settings toggle"><span data-i18n-aria-label="visMixStack"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideClickAnimations" class="settings toggle"><span data-i18n-aria-label="visClickAnimations"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideHashtags" class="settings toggle"><span data-i18n-aria-label="visHashtags"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideTicketShelf" class="settings toggle"><span data-i18n-aria-label="visTicketShelf"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideAISummary" class="settings toggle"><span data-i18n-aria-label="visAISummary"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideEndScreen" class="settings toggle"><span data-i18n-aria-label="visEndScreen"></span></label>
+                                    <label class="toggle-label"><input type="checkbox" name="hideExtraSearchCategories" class="settings toggle"><span data-i18n-aria-label="visExtraSearch"></span></label>
                                 </div>
                             </div>
                         </div>
@@ -636,8 +562,8 @@
                 </div>
             </div>
         </fieldset>
-        <div class="note">Note: most settings require a page refresh to take effect.</div>
-        <div id="donate-message" style="text-align:center; font-size: 10.5px;">Feel free to support me. Thank you! <span class="pure">:)</span>
+        <div class="note" data-i18n="note"></div>
+        <div id="donate-message" style="text-align:center; font-size: 10.5px;"><span data-i18n="donateMessage"></span> <span class="pure">:)</span>
             <br>
         </div>
         <div class="navigation">
@@ -646,15 +572,18 @@
             </div>
             <div class="donate-wrapper">
                 <div class="donate-text-wrapper">
-                    <span>❤️ YOU'RE</span>
-                    <span>AWESOME ❤️</span>
+                    <span data-i18n="donateLeft"></span>
+                    <span data-i18n="donateRight"></span>
                 </div>
-                <button id="donate"><img src="/images/donate.png" alt="Donation button"></img></button>
+                <button id="donate"><img src="/images/donate.png" data-i18n-alt="donateAlt"></button>
             </div>
             <div id="right-arrow" class="nav-arrow">
                 <svg height="48" viewBox="0 0 48 48" width="48"><path d="M16 10v28l22-14z"/></svg>
             </div>
         </div>
+      <script src="helpers/settings.js"></script>
+      <script src="helpers/i18n.js"></script>
+      <script src="helpers/i18n-ui.js"></script>
       <script src="popup.js"></script>
     </body>
   </html>

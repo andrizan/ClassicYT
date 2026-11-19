@@ -1,272 +1,210 @@
-let minVersion = 53;
-let storage = browser.storage.sync;
-if (navigator.userAgent.match(/Firefox\/([^\s]+)/)) {
-	if (parseInt(navigator.userAgent.match(/Firefox\/([^\s]+)/)[1]) < minVersion) {
-		storage = browser.storage.local;
-		let warnings = document.querySelectorAll('.browser-warning');
-		warnings.forEach(element => {
-			element.style.display = 'inline';
-		});
-	}
-}
-let donateButton = document.querySelector('#donate');
-let githubButton = document.querySelector('#github-button');
-let globalURL;
+const REPOSITORY_URL = 'https://github.com/andrizan/YouTubeRedux';
+const DONATE_URL = 'https://www.paypal.com/donate?hosted_button_id=MD9WRXSTLB49W';
+const allPages = document.querySelector('#all-pages');
+const leftArrow = document.querySelector('#left-arrow');
+const rightArrow = document.querySelector('#right-arrow');
+const slider = document.querySelector('input[type="range"]');
+const sliderControl = document.querySelector('.slider-control');
+const playerWidthSelect = document.querySelector('select[name="smallPlayerWidth"]');
+const titleFontSelect = document.querySelector('select[name="titleFontValue"]');
+const languageSelect = document.querySelector('select[name="language"]');
 let currentSettings;
 
-donateButton.onclick = function() {
-	window.open("https://www.paypal.com/donate?hosted_button_id=MD9WRXSTLB49W");
+document.querySelector('#version').textContent = `v${browser.runtime.getManifest().version}`;
+
+document.querySelector('#donate').onclick = function() {
+	window.open(DONATE_URL);
 };
 
-githubButton.onclick = function() {
-	window.open("https://github.com/omnidevZero/YouTubeRedux");
+document.querySelector('#github-button').onclick = function() {
+	window.open(REPOSITORY_URL);
 };
 
-let settingsElements = document.querySelectorAll('.settings:not(.slider-control)');
-for (let i = 0; i < settingsElements.length; i++) {
-	settingsElements[i].addEventListener('change', function() {
-		if (this.parentElement.nextElementSibling != null && this.parentElement.nextElementSibling.classList.contains('subsettings-container')) {
-			let subsettings = this.parentElement.nextElementSibling.querySelectorAll('.subsetting input[type="checkbox"]');
-			if (this.checked) {
-				subsettings.forEach(element => {
-					element.removeAttribute('disabled');
-				});
-			} else {
-				subsettings.forEach(element => {
-					element.setAttribute('disabled', '');
-					element.checked = false;
-				});
-			}
-		}
-		saveSettings();
-	});
+function getSubsettings(setting) {
+	const container = setting.parentElement.nextElementSibling;
+	if (container == null || !container.classList.contains('subsettings-container')) return [];
+	return container.querySelectorAll('.subsetting input[type="checkbox"]');
 }
 
-document.querySelector('input[type="range"]').addEventListener('change', function() {
-	let inputControl = document.querySelector('.slider-control');
-	inputControl.value = this.value;
-	saveSettings();
-	changeGridWidth(this.value);
+document.querySelectorAll('.settings:not(.slider-control)').forEach(setting => {
+	setting.addEventListener('change', function() {
+		getSubsettings(this).forEach(element => {
+			if (this.checked) {
+				element.removeAttribute('disabled');
+			} else {
+				element.setAttribute('disabled', '');
+				element.checked = false;
+			}
+		});
+		saveSettings();
+	});
 });
 
-document.querySelector('.slider-control').addEventListener('change', function() {
-	let slider = document.querySelector('input[type="range"]');
+slider.addEventListener('change', function() {
+	sliderControl.value = this.value;
+	saveSettings();
+});
+
+sliderControl.addEventListener('change', function() {
 	slider.value = this.value;
 	saveSettings();
-	changeGridWidth(this.value);
 });
+
+languageSelect.addEventListener('change', applyLanguage);
 
 //navigation buttons
-document.querySelector('#right-arrow').addEventListener('click', function() {
+function showPage(page) {
+	allPages.setAttribute('active-page', page);
+	allPages.style.transform = `translateX(-${(page - 1)*100}%)`;
+	leftArrow.toggleAttribute('disabled', page <= 1);
+	rightArrow.toggleAttribute('disabled', page >= 3);
+}
+
+rightArrow.addEventListener('click', function() {
 	if (this.hasAttribute('disabled')) {
 		return;
 	}
 
-	document.querySelector('#left-arrow').removeAttribute('disabled');
-	let currentActivePage = document.querySelector('#all-pages').getAttribute("active-page");
-	document.querySelector('#all-pages').setAttribute("active-page", ++currentActivePage);
-	document.querySelector('#all-pages').style = `transform: translateX(-${(currentActivePage - 1)*100}%)`;
+	const page = Number(allPages.getAttribute('active-page')) + 1;
+	showPage(page);
 
-	if (currentActivePage >= 3) {
-		document.querySelector('#right-arrow').setAttribute('disabled', '');
-		if (!currentSettings.completedSettingsTutorial) {
-			document.querySelector("input[name='completedSettingsTutorial']").checked = true;
-			this.classList.remove("glow");
-			saveSettings();
-		}
+	if (page >= 3 && !currentSettings.completedSettingsTutorial) {
+		document.querySelector("input[name='completedSettingsTutorial']").checked = true;
+		this.classList.remove("glow");
+		saveSettings();
 	}
 });
 
-document.querySelector('#left-arrow').addEventListener('click', function() {
+leftArrow.addEventListener('click', function() {
 	if (this.hasAttribute('disabled')) {
 		return;
 	}
 
-	document.querySelector('#right-arrow').removeAttribute('disabled');
-	let currentActivePage = document.querySelector('#all-pages').getAttribute("active-page");
-	document.querySelector('#all-pages').setAttribute("active-page", --currentActivePage);
-	document.querySelector('#all-pages').style = `transform: translateX(-${(currentActivePage - 1)*100}%)`;
-
-	if (currentActivePage <= 1) {
-		document.querySelector('#left-arrow').setAttribute('disabled', '');
-	}
+	showPage(Number(allPages.getAttribute('active-page')) - 1);
 });
 
-//font selection
-document.querySelector('select[name="titleFontValue"]').addEventListener('change', function() {
-	if (this.querySelector('option:last-child').selected) {
-		let fontChoice = prompt('Enter your custom font name.\nTo reset it change to another value and then back to custom.', '\'Times New Roman\'');
-		if (fontChoice != null) {
-			this.querySelector('option:last-child').value = fontChoice;
-			saveSettings();
-		}
+//custom values for the font and small player size selects (the last option holds the custom value)
+function askForCustomValue(select, message, suggestion) {
+	const customOption = select.querySelector('option:last-child');
+	if (!customOption.selected) return;
+	const choice = prompt(message, suggestion);
+	if (choice != null && choice.trim() !== '') {
+		customOption.value = choice.trim();
+		saveSettings();
 	}
+}
+
+function selectValue(select, value) {
+	select.value = value;
+	if (select.value === '') {
+		const customOption = select.querySelector('option:last-child');
+		customOption.value = value;
+		customOption.selected = true;
+	}
+}
+
+titleFontSelect.addEventListener('change', function() {
+	askForCustomValue(this, t('promptFont'), '\'Times New Roman\'');
 });
 
-//custom small player size
-document.querySelector('select[name="smallPlayerWidth"]').addEventListener('change', function() {
-	if (this.querySelector('option:last-child').selected) {
-		let sizeChoice = prompt('Enter your custom player height in pixels (width will be automatically adjusted).\nTo reset it change to another value and then back to custom.', '900');
-		if (sizeChoice != null) {
-			this.querySelector('option:last-child').value = sizeChoice;
-			saveSettings();
-		}
-	}
+playerWidthSelect.addEventListener('change', function() {
+	askForCustomValue(this, t('promptPlayerWidth'), '900');
 });
 
 //logo preview
 document.querySelectorAll('label.logo-label').forEach(element => {
+	const preview = document.querySelector('.logo-preview');
 	element.addEventListener('mouseenter', function() {
-		let preview = document.querySelector('.logo-preview');
-		let previewImg = preview.querySelector('img');
-		let previewExtension = this.firstChild.value == 'XL' ? 'png' : 'svg';
-		previewImg.src = `/images/${this.firstChild.value}logo.${previewExtension}`;
+		const logo = this.firstChild.value;
+		preview.querySelector('img').src = `/images/${logo}logo.${logo == 'XL' ? 'png' : 'svg'}`;
 		preview.style.display = 'flex';
 	});
-});
-document.querySelectorAll('label.logo-label').forEach(element => {
 	element.addEventListener('mouseleave', function() {
-		let preview = document.querySelector('.logo-preview');
 		preview.style.display = 'none';
 	});
 });
 
 //reset
-document.querySelector('#restore-defaults').addEventListener('click', () => {
-	const confirmation = confirm('All settings will be reset to default values and current page will be refreshed. Continue?');
-	if (confirmation) {
-		browser.storage.sync.clear();
-		browser.tabs.query({active: true, currentWindow: true}, function(tabs) {
-			browser.tabs.reload(tabs[0].id);
-		});
-		window.close();
-	}
+document.querySelector('#restore-defaults').addEventListener('click', async() => {
+	if (!confirm(t('confirmRestore'))) return;
+	await storage.clear();
+	const tabs = await browser.tabs.query({active: true, currentWindow: true});
+	if (tabs[0]) browser.tabs.reload(tabs[0].id);
+	window.close();
 });
 
 //export/import config
 document.querySelector('#export-config').addEventListener('click', () => {
-	browser.tabs.create({
-		url: `./config.html?data=${btoa(JSON.stringify(currentSettings, null, 2))}`
-	});
+	browser.tabs.create({ url: './config.html' });
 });
 
 function saveSettings() {
-	let newSettings = {};
-	//save slider
-	newSettings[document.querySelector('input[type="range"]').name] = document.querySelector('input[type="range"]').value;
+	const newSettings = { ...currentSettings };
+	newSettings[slider.name] = slider.value;
 
-	//save checkboxes
-	let itemsCheck = document.querySelectorAll('input[type="checkbox"]');
-	for (let i = 0; i < itemsCheck.length; i++) {
-		newSettings[itemsCheck[i].name] = itemsCheck[i].checked;
-	}
+	document.querySelectorAll('input[type="checkbox"]').forEach(element => {
+		newSettings[element.name] = element.checked;
+	});
 
-	//save selects
-	let selects = document.querySelectorAll('select');
-	selects.forEach(element => {
+	document.querySelectorAll('select').forEach(element => {
 		newSettings[element.name] = element.value;
 	});
 
-	//save favicon radio buttons
-	let radio = document.querySelectorAll('input[type="radio"][name="favicon"]');
-	for (let i = 0; i < radio.length; i++) {
-		if (radio[i].checked) {
-			newSettings[radio[i].name] = radio[i].value;
-		}
-	}
-
-	//save logo radio buttons
-	let logo = document.querySelectorAll('input[type="radio"][name="classicLogoChoice"]');
-	for (let i = 0; i < logo.length; i++) {
-		if (logo[i].checked) {
-			newSettings[logo[i].name] = logo[i].value;
-		}
-	}
-
-	//save buttons
-	let buttons = document.querySelectorAll('fieldset button');
-	for (let i = 0; i < buttons.length; i++) {
-		newSettings[buttons[i].name] = buttons[i].value;
-	}
+	document.querySelectorAll('input[type="radio"]:checked').forEach(element => {
+		newSettings[element.name] = element.value;
+	});
 
 	storage.set({reduxSettings: newSettings});
 	currentSettings = newSettings;
 }
 
-function changeGridWidth(numberOfItems) {
-	if (globalURL == "https://www.youtube.com/" || globalURL == "http://www.youtube.com/") {
-		browser.tabs.query({active: true, currentWindow: true}, function(tabs) {
-			browser.tabs.executeScript(
-				tabs[0].id,
-				{code: `var styleItem = document.querySelector("#primary > ytd-rich-grid-renderer #contents");
-          styleItem.style.setProperty("--ytd-rich-grid-items-per-row", ${numberOfItems}, "important")
-          `
-				});
-		});
-	}
-}
-
 function getSettings() {
-	if (currentSettings == null) {return;}
-	let itemsCheck = document.querySelectorAll('input[type="checkbox"]');
+	slider.value = currentSettings.gridItems;
+	sliderControl.value = currentSettings.gridItems;
 
-	//set slider
-	document.querySelector('input[type="range"]').value = currentSettings.gridItems;
-	document.querySelector('.slider-control').value = currentSettings.gridItems;
-	//set checkboxes
-	for (let i = 0; i < itemsCheck.length; i++) {
-		for (let j = 0; j < Object.keys(currentSettings).length; j++) {
-			if (itemsCheck[i].name == Object.keys(currentSettings)[j]) {
-				itemsCheck[i].checked = Object.values(currentSettings)[j];
-			}
-		}
-	}
-	//set selects
-	document.querySelector('select[name="smallPlayerWidth"]').value = currentSettings.smallPlayerWidth == undefined ? 853 : currentSettings.smallPlayerWidth;
-	if (document.querySelector('select[name="smallPlayerWidth"]').value == "") document.querySelector('select[name="smallPlayerWidth"]').value = "Custom";
-	document.querySelector('select[name="titleFontValue"]').value = currentSettings.titleFontValue == undefined ? "Arial" : currentSettings.titleFontValue;
-	if (document.querySelector('select[name="titleFontValue"]').value == "") document.querySelector('select[name="titleFontValue"]').value = "Custom";
-	//set radio buttons
-	document.querySelector(`input[type="radio"][value="${currentSettings.favicon}"]`).checked = true;
-	document.querySelector(`input[type="radio"][value="${currentSettings.classicLogoChoice}"]`).checked = true;
-	//uncheck subsettings
-	let settingsElements = document.querySelectorAll('.settings:not(.slider-control)');
-	for (let i = 0; i < settingsElements.length; i++) {
-		if (settingsElements[i].parentElement.nextElementSibling != null && settingsElements[i].parentElement.nextElementSibling.classList.contains('subsettings-container')) {
-			let subsettings = settingsElements[i].parentElement.nextElementSibling.querySelectorAll('.subsetting input[type="checkbox"]');
-			if (settingsElements[i].checked) {
-				subsettings.forEach(element => {
-					element.removeAttribute('disabled');
-				});
-			}
-		}
-	}
-}
+	document.querySelectorAll('input[type="checkbox"]').forEach(element => {
+		if (element.name in currentSettings) element.checked = !!currentSettings[element.name];
+	});
 
-function setPopupState() {
-	calculateSizeOptions();
-	getSettings();
+	selectValue(playerWidthSelect, String(currentSettings.smallPlayerWidth ?? 853));
+	selectValue(titleFontSelect, String(currentSettings.titleFontValue ?? 'Arial'));
+	languageSelect.value = currentSettings.language in reduxMessages ? currentSettings.language : 'auto';
 
-	if (!currentSettings.completedSettingsTutorial) {
-		document.querySelector('#right-arrow').classList.add("glow");
+	for (const name of ['favicon', 'classicLogoChoice']) {
+		const radio = document.querySelector(`input[type="radio"][name="${name}"][value="${currentSettings[name]}"]`);
+		if (radio) radio.checked = true;
 	}
+
+	//enable subsettings of checked settings
+	document.querySelectorAll('.settings:not(.slider-control)').forEach(setting => {
+		if (!setting.checked) return;
+		getSubsettings(setting).forEach(element => element.removeAttribute('disabled'));
+	});
 }
 
 function calculateSizeOptions() {
-	let options = document.querySelectorAll('select[name="smallPlayerWidth"] option');
-	options.forEach(element => {
-		if (element.value == 'Custom') {
-			element.innerText = `Custom...`; //fixed at 16:9
+	playerWidthSelect.querySelectorAll('option').forEach(element => {
+		if (element.matches(':last-child')) {
+			element.textContent = t('custom');
 		} else {
-			element.innerText = `${element.value}x${Math.ceil(element.value / 1.78)}px`; //fixed at 16:9
+			element.textContent = `${element.value}x${Math.ceil(element.value / 1.78)}px`; //fixed at 16:9
 		}
 	});
 }
 
+function applyLanguage() {
+	setLanguage(languageSelect.value);
+	localizePage();
+	calculateSizeOptions();
+}
+
 //main
-storage.get(['reduxSettings'], function(result) {
-	if (result) {
-		currentSettings = result.reduxSettings;
-		setPopupState();
+loadSettings().then(settings => {
+	currentSettings = settings;
+	getSettings();
+	applyLanguage();
+
+	if (!currentSettings.completedSettingsTutorial) {
+		rightArrow.classList.add("glow");
 	}
 });

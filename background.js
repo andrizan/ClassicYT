@@ -1,30 +1,29 @@
-function handleInstalled(reason) {
-	browser.storage.sync.set({ queueDisplayChangelog: false });
-	browser.storage.sync.get(['reduxSettings'], function(result) {
-		if (Object.keys(result).length > 0 && !result.reduxSettings.showChangelog) {
-			return;
-		} 
-		else if (reason != "browser_update" && reason != "chrome_update") {
-			browser.tabs.create({
-				url: `./changelog.html#${reason}`
-			});
-		}
+/* Event page: shows the changelog right after an install and, after an update, the next time YouTube is visited. */
+function openChangelog(reason) {
+	browser.tabs.create({
+		url: `./changelog.html#${reason}`
 	});
 }
-  
-let browser = chrome || browser;
-browser.runtime.onInstalled.addListener(reason => {
-	if (reason.reason === "install") {
-		handleInstalled(reason.reason);
-	} else {
-		browser.storage.sync.set({ queueDisplayChangelog: true, updateReason: reason });
+
+async function showQueuedChangelog() {
+	const { reduxSettings } = await browser.storage.sync.get('reduxSettings');
+	await browser.storage.sync.set({ queueDisplayChangelog: false });
+	if (!reduxSettings || reduxSettings.showChangelog) {
+		openChangelog('update');
+	}
+}
+
+browser.runtime.onInstalled.addListener(details => {
+	if (details.reason === 'install') {
+		browser.storage.sync.set({ queueDisplayChangelog: false });
+		openChangelog('install');
+	} else if (details.reason === 'update') {
+		browser.storage.sync.set({ queueDisplayChangelog: true });
 	}
 });
 
 browser.runtime.onMessage.addListener(request => {
-	browser.storage.sync.get(['updateReason'], function(result) {
-		if (Object.keys(result).length > 0 && request.message === "displayChangelog") {
-			handleInstalled(result.updateReason.reason);
-		}
-	});
+	if (request.message === 'displayChangelog') {
+		showQueuedChangelog();
+	}
 });

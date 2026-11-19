@@ -95,7 +95,7 @@ html:not([dark]) #related yt-lockup-metadata-view-model [title] > a[href]:hover 
 yt-lockup-view-model .ytLockupViewModelContentImage {
     padding-bottom: 0 !important;
 }
-.yt-lockup-metadata-view-model-wiz__menu-button {
+.ytLockupMetadataViewModelMenuButton {
     margin-top: 12px;
 }
 yt-content-metadata-view-model > div:first-child {
@@ -106,7 +106,7 @@ yt-content-metadata-view-model > div:first-child {
     line-height: 1.8rem !important;
 }
 #video-title.ytd-rich-grid-media:hover,
-.yt-lockup-metadata-view-model-wiz__title > .yt-core-attributed-string--white-space-pre-wrap:hover {
+.ytLockupMetadataViewModelTitle > .ytAttributedStringWhiteSpacePreWrap:hover {
     text-decoration: underline;
 }
 #text.ytd-channel-name {
@@ -124,9 +124,6 @@ ytd-guide-section-renderer {
     --paper-item-min-height: 30px !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
-}
-ytd-guide-entry-renderer[guide-refresh] {
-    width: calc(100% - 8px) !important;
 }
 #guide-links-primary.ytd-guide-renderer > a, #guide-links-secondary.ytd-guide-renderer > a {
     font-size:10px !important;
@@ -181,11 +178,9 @@ ytd-thumbnail::before,
 ytd-guide-entry-renderer,
 ytd-guide-entry-renderer > a,
 ytd-multi-page-menu-renderer,
-div.ytd-searchbox,
 .rich-grid-media-skeleton .rich-thumbnail,
 .rich-grid-media-skeleton .rich-thumbnail::before,
 ytd-thumbnail-overlay-endorsement-renderer,
-#video-preview-container,
 .html5-video-player,
 ytd-menu-popup-renderer,
 tp-yt-paper-item:focus:before,
@@ -200,16 +195,12 @@ tp-yt-paper-toast,
 tp-yt-paper-dialog,
 #playlist > #container,
 .ytp-popup,
-.ytp-rounded-menu,
 ytd-engagement-panel-section-list-renderer,
 ytd-miniplayer,
 .ytd-miniplayer,
 .immersive-header-container.ytd-playlist-header-renderer,
 .image-wrapper.ytd-hero-playlist-thumbnail-renderer,
 ytd-playlist-video-renderer,
-.branding-context-container-inner.ytp-rounded-branding-context,
-.ytp-sb-subscribe.ytp-sb-rounded,
-.ytp-sb-unsubscribe.ytp-sb-rounded,
 .ytp-ce-video.ytp-ce-large-round,
 .ytp-ce-playlist.ytp-ce-large-round,
 .ytp-ce-large-round .ytp-ce-expanding-overlay-background,
@@ -221,11 +212,8 @@ html body[rounded-container] tp-yt-paper-tooltip .tp-yt-paper-tooltip[style-targ
 ytd-rich-metadata-renderer[rounded],
 ytd-live-chat-frame,
 ytd-macro-markers-list-item-renderer[rounded] #thumbnail.ytd-macro-markers-list-item-renderer,
-.iv-card.ytp-rounded-info,
 yt-copy-link-renderer[rounded-container] #bar.yt-copy-link-renderer,
 #clarify-box > ytd-info-panel-content-renderer,
-.ytp-rounded-tooltip,
-.ytp-rounded-tooltip .ytp-tooltip-bg,
 .ytp-player-minimized .html5-main-video,
 .ytp-player-minimized .ytp-miniplayer-scrim,
 .ytp-player-minimized.html5-video-player,
@@ -236,7 +224,6 @@ yt-subscribe-button-view-model button,
 yt-sheet-view-model,
 ytp-autonav-endscreen-upnext-thumbnail,
 #player-api,
-.yt-spec-avatar-shape__image,
 .ytp-videowall-still-round-medium .ytp-videowall-still-image,
 .ytp-autonav-endscreen-upnext-thumbnail,
 .ytp-autonav-endscreen-button-container > button,
@@ -256,15 +243,12 @@ yt-page-header-view-model > div,
 ytd-universal-watch-card-renderer[rounded] #header,
 ytd-universal-watch-card-renderer[rounded] #hero,
 ytd-button-banner-view-model a,
-.ShortsLockupViewModelHostThumbnailContainerRounded,
-.shortsLockupViewModelHostThumbnailContainerRounded,
 #shorts-inner-container #player-container,
 .ytChipShapeChip,
 #chip-container.yt-chip-cloud-chip-renderer,
-.yt-flexible-actions-view-model-wiz__action > button-view-model > button,
+.ytFlexibleActionsViewModelAction > button-view-model > button,
 .ytp-tooltip.ytp-preview:not(.ytp-text-detail), .ytp-tooltip-bg,
 ytd-expandable-metadata-renderer[is-watch],
-ytd-shorts[enable-new-carousel] .reel-video-in-sequence-thumbnail.ytd-shorts,
 .metadata-container.ytd-reel-player-overlay-renderer,
 ytd-feed-nudge-renderer[rounded-container] #dismissible.ytd-feed-nudge-renderer,
 .ytwTopLandscapeImageLayoutViewModelHostImageHoverOverlayContainer,
@@ -280,9 +264,8 @@ ytd-button-renderer.ytd-feed-filter-chip-bar-renderer,
 .ytp-delhi-modern .ytp-tooltip.ytp-text-detail.ytp-preview,
 .ytp-delhi-modern .ytp-settings-menu .ytp-menuitem > *:last-child,
 .ytwTopBannerImageTextIconButtonedLayoutViewModelHost,
-.yt-spec-button-shape-next--call-to-action.yt-spec-button-shape-next--filled,
+.ytSpecButtonShapeNextCallToAction.ytSpecButtonShapeNextFilled,
 .shortsLockupViewModelHostThumbnailParentContainerRounded,
-.yt-badge-shape--thumbnail-badge,
 .ytBadgeShapeThumbnailBadge,
 .ytTooltipContainerDefaultTooltipContent,
 ytd-video-preview[rounded-corners-large] #media-container.ytd-video-preview,
@@ -294,30 +277,20 @@ ytd-carousel-item-renderer,
 .ytdGhostGridViewModelTextShell {
     border-radius: 0 !important;
 }
-#search-icon-legacy {
-    border-radius: 0 2px 2px 0 !important;
-}
 /* 2025 hover highlights */
 .ytd-rich-item-renderer-highlight {
     background: none !important;
     box-shadow: none !important;
 }
 #details.ytd-rich-grid-media,
-.yt-lockup-view-model-wiz {
+.ytLockupViewModelHost {
     cursor: unset !important;
 }
 /* 2025 layout changes */
 ytd-app[frosted-glass-exp] #guide-spacer,
 #frosted-glass,
-.smartimation__border,
 yt-light-shape {
     display: none !important;
-}
-/* 2025 mono video controls */
-.ytp-xs-mono-button-style > .ytp-time-wrapper {
-    background: none !important;
-    height: unset !important;
-    font-weight: normal !important;
 }
 /* 2025 delhi video controls */
 .ytp-delhi-modern .ytp-time-wrapper {
@@ -406,10 +379,6 @@ yt-light-shape {
 .ytp-delhi-modern .ytp-exp-chapter-hover-effect {
     transform: scaleY(1.05) !important;
 }
-.ytp-delhi-modern .skipButtonControlBarContainer {
-    height: 40px !important;
-    margin: 0 !important;
-}
 .ytp-delhi-modern [sponsorblock-category="poi_highlight"] {
     background-color: red !important;
 }
@@ -479,9 +448,6 @@ ytd-toggle-button-renderer {
 #like-bar.ytd-sentiment-bar-renderer {
     background: #167ac6 !important;
 }
-#author-thumbnail.ytd-comment-renderer yt-img-shadow.ytd-comment-renderer {
-    border-radius:0% !important;
-}
 #author-thumbnail.ytd-comment-simplebox-renderer {
     border-radius:0% !important;
 }
@@ -507,7 +473,7 @@ html:not([dark]) #author-text {
 html:not([dark]) ytd-author-comment-badge-renderer {
     --ytd-author-comment-badge-name-color: #128ee9 !important;
 }
-span.yt-view-count-renderer, span.ytd-video-view-count-renderer {
+span.ytd-video-view-count-renderer {
     font-size:18px !important;
 }
 ytd-watch-flexy:not([theater]):not([fullscreen]) #primary.ytd-watch-flexy, 
@@ -658,7 +624,7 @@ ytd-watch-metadata #above-the-fold #owner {
 ytd-item-section-renderer ytd-thumbnail:not([rich-grid-thumbnail]), 
 ytd-item-section-renderer ytd-playlist-thumbnail,
 ytd-item-section-renderer .ytLockupViewModelContentImage,
-ytd-two-column-search-results-renderer .yt-lockup-view-model__content-image {
+ytd-two-column-search-results-renderer .ytLockupViewModelContentImage {
     max-width: 246px !important;
 }
 ytd-item-section-renderer .ytLockupViewModelContentImage {
@@ -668,7 +634,7 @@ ytd-item-section-renderer yt-lockup-view-model > div {
     margin-top: 0px !important;
 }
 html:not([dark]) #video-title.ytd-video-renderer,
-html:not([dark]) ytd-item-section-renderer .yt-lockup-metadata-view-model-wiz__title {
+html:not([dark]) ytd-item-section-renderer .ytLockupMetadataViewModelTitle {
     color:#167ac6 !important;
 }
 html:not([dark]) #video-title.ytd-playlist-renderer {
@@ -723,19 +689,13 @@ html:not([dark]) #video-title.yt-simple-endpoint.ytd-grid-video-renderer {
 #video-title.yt-simple-endpoint.ytd-grid-video-renderer:hover {
     text-decoration: underline;
 }
-.tab-content.paper-tab,
 .tab-content.tp-yt-paper-tab {
     font-size:13px !important;
 }
-paper-tab.ytd-c4-tabbed-header-renderer,
-tp-yt-paper-tab.ytd-c4-tabbed-header-renderer {
-    padding: 0 8px !important;
-}
-#selectionBar.paper-tabs,
 #selectionBar.tp-yt-paper-tabs {
     border-bottom: 2px solid #f00 !important;
 }
-.yt-tab-group-shape-wiz__slider {
+.tabGroupShapeSlider {
     background-color: #f00 !important;
 }
 #description.ytd-channel-about-metadata-renderer, #bio.ytd-channel-about-metadata-renderer {
@@ -746,18 +706,6 @@ html:not([dark]) #title.ytd-grid-channel-renderer {
 }
 yt-img-shadow.ytd-grid-channel-renderer {
     border-radius: 0% !important;
-}
-yt-img-shadow.ytd-channel-avatar-editor {
-    border-radius: 0% !important;
-}
-#avatar.ytd-c4-tabbed-header-renderer {
-    border-radius: 0% !important;
-}
-yt-img-shadow.ytd-mini-channel-renderer {
-    border-radius: 0% !important;
-}
-#items.ytd-vertical-channel-section-renderer > *.ytd-vertical-channel-section-renderer:not(:first-child) {
-    padding-top: 8px !important;
 }
 .grid-subheader.ytd-shelf-renderer {
     margin-top: 12px !important;
@@ -795,17 +743,17 @@ yt-img-shadow.ytd-mini-channel-renderer {
 	background: #ff0000 !important;
 	height: 3px !important;
 }
-tp-yt-app-toolbar.ytd-tabbed-page-header, #tabs-container.ytd-tabbed-page-header, tp-yt-paper-tabs.ytd-tabbed-page-header, [page-subtype="channels"] #tabsContainer, .tabGroupShapeHost, .yt-tab-shape {
+tp-yt-app-toolbar.ytd-tabbed-page-header, #tabs-container.ytd-tabbed-page-header, tp-yt-paper-tabs.ytd-tabbed-page-header, [page-subtype="channels"] #tabsContainer, .tabGroupShapeHost, .ytTabShapeHost {
 	height: 35px !important;
 }
-.yt-tab-shape__tab {
+.ytTabShapeTab {
 	font-size: 13px !important;
 	font-weight: 400 !important;
 }
-.yt-tab-shape__tab--tab-selected {
+.ytTabShapeTabSelected {
 	font-weight: 500 !important;
 }
-.yt-tab-shape:hover .yt-tab-shape__tab-bar {
+.ytTabShapeHost:hover .ytTabShapeTabBar {
 	background: #ff0000 !important;
 	height: 3px !important;
 }
@@ -824,15 +772,12 @@ yt-img-shadow.ytd-channel-list-sub-menu-avatar-renderer {
 .ytThumbnailOverlayProgressBarHostWatchedProgressBarSegment {
 	background: #ff0000;
 }
-.yt-badge-shape--thumbnail-default {
+.ytBadgeShapeThumbnailDefault {
     background: #000000 !important;
     font-size: 11px !important;
     line-height: 14px !important;
     opacity: 0.75 !important;
     padding: 0 4px !important;
-}
-.yt-lockup-metadata-view-model__metadata {
-    color: #767676 !important;
 }
 
 /*ADDITIONAL*/
@@ -895,4 +840,9 @@ html:not([dark]) ytd-continuation-item-renderer span[role="text"] {
 /* RELATED VIDEOS */
 #related yt-lockup-view-model > div > a {
     width: 168px !important;
+}
+
+/* buttons hidden by YouTube Redux (e.g. Thanks) */
+[redux-hidden] {
+    display: none !important;
 }

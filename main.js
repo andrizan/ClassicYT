@@ -1,309 +1,327 @@
 'use strict';
-let flags = {
-	"likesChanged":false,
-	"stylesChanged":false,
-	"isRearranged":false,
-	"isRearrangedNew":false,
-	"likesTracked":false,
-	"recalcListenersAdded":false,
-	"trueFullscreenListenersAdded":false,
-	"homeObserverAdded": false
+/* Runs at document_idle and handles everything the injected styles can't express.
+   Work is triggered by YouTube's navigation events and by observers instead of polling the page; the only
+   timers left are the 'Video paused' check and a once-a-second comparison of the URL. */
+
+const flags = {
+	"isRearranged": false,
+	"trueFullscreenListenersAdded": false,
+	"playerListenersAdded": false
 };
-let alignRetry = {
-	startCount: 0,
-	maxCount: 5,
-	timeout: 20
+const TEXT_CHANGES = { childList: true, characterData: true, subtree: true };
+const INFO_TOOLTIP = '#description tp-yt-paper-tooltip:not([disable-upgrade]) > #tooltip';
+const LIKE_BUTTON = '#above-the-fold #segmented-like-button button, #above-the-fold like-button-view-model button';
+const BUTTON_TEXT = '.ytSpecButtonShapeNextButtonTextContent';
+const RELATED_ITEMS = '#secondary > #secondary-inner > #related > ytd-watch-next-secondary-results-renderer > #items';
+const SHOW_MORE_STYLE = 'font-family: Roboto, Arial, sans-serif; padding-top: 9px; width: 100%; border-top: 1px solid #e2e2e2; border-bottom: none; border-left: none; border-right: none; background:none; font-size: 1.1rem; outline: none; cursor:pointer; text-transform: uppercase; font-weight: 500; color: var(--redux-spec-text-secondary); letter-spacing: 0.007px;';
+//icon names YouTube uses in its own data for the buttons below the player; they don't depend on the UI language
+const FLEXIBLE_ICONS = {
+	"thanks": ['MONEY_HEART', 'MONEY_HAND'],
+	"save": ['PLAYLIST_ADD', 'BOOKMARK_BORDER']
 };
+
 let YTReduxURLPath;
 let YTReduxURLSearch;
 let confirmInterval;
-aspectRatio = (window.screen.width / window.screen.height).toFixed(2);
-playerSize = {};
-playerSize.width = reduxSettings.smallPlayerWidth == undefined ? 853 : reduxSettings.smallPlayerWidth;
-playerSize.height = Math.ceil(playerSize.width / aspectRatio);
-let observerComments;
-let observerRelated;
-let intervalsArray = [];
-let isCheckingRecalc = false;
+let pageCleanups = []; //undone on every navigation
+const trackedElements = new Map();
+const expandedSections = new WeakSet();
+let hiddenThanksButton = null;
 
-function delay(ms) {
-	return new Promise(resolve => {
-		setTimeout(() => {
-			resolve();
-		}, ms);
-	});
+function createElement(tag, properties, children) {
+	const element = Object.assign(document.createElement(tag), properties);
+	if (children) element.append(...children);
+	return element;
 }
 
-function confirmIt() {
-	let confirmButton = document.querySelector('paper-dialog > yt-confirm-dialog-renderer > div:last-child > div > #confirm-button') || document.querySelector('ytd-popup-container  yt-confirm-dialog-renderer > #main > div.buttons > #confirm-button');
-	if (!confirmButton) return;
-	let buttonParent = confirmButton.closest('tp-yt-paper-dialog');
-	let buttonParentVisible = buttonParent.style.display !== 'none';
-	let buttonVisible = document.querySelector('ytd-popup-container tp-yt-paper-dialog:not([aria-hidden="true"])');
-	let popupElement = document.querySelector('ytd-popup-container yt-confirm-dialog-renderer > #main > div.buttons > yt-button-renderer');
-	let popupTypeCheck = popupElement == null ? false : popupElement.hasAttribute('hidden');
-	if (confirmButton != null && !!buttonVisible && popupTypeCheck && buttonParentVisible) {
-		confirmButton.click();
-		document.querySelector('video').play();
-		//log('Clicked at: ' + new Date());
+function setText(element, text) {
+	if (element && element.textContent !== text) element.textContent = text;
+}
+
+/* Same as setText, for elements that YouTube or another extension (e.g. Return YouTube Dislike) writes to as
+   well. If the text keeps getting replaced, the element is left alone until the next navigation rather than
+   fought over. */
+let contestedElements = new WeakMap();
+function setContestedText(element, text) {
+	if (!element || element.textContent === text) return;
+	const now = Date.now();
+	let state = contestedElements.get(element);
+	if (!state || (!state.lost && now - state.since > 5000)) {
+		state = { since: now, writes: 0, lost: false };
+		contestedElements.set(element, state);
+	}
+	if (state.lost) return;
+	if (++state.writes > 20) {
+		state.lost = true;
+		return;
+	}
+	element.textContent = text;
+}
+
+/* Observes one element per key. YouTube usually keeps its elements between navigations, so the observer
+   is only replaced when the element itself was. */
+function track(key, element, options, callback) {
+	const current = trackedElements.get(key);
+	if (current?.element === element) return;
+	current?.observer.disconnect();
+	const observer = new MutationObserver(callback);
+	observer.observe(element, options);
+	trackedElements.set(key, { element, observer });
+}
+
+/* ---------- waiting for elements ---------- */
+const waiters = new Set();
+let waiterCheckTimer = null;
+let waiterObserving = false;
+const waiterObserver = new MutationObserver(() => scheduleWaiterCheck(50));
+
+function scheduleWaiterCheck(delay) {
+	if (waiterCheckTimer === null) waiterCheckTimer = setTimeout(checkWaiters, delay);
+}
+
+function stopWaitingIfIdle() {
+	if (waiters.size === 0 && waiterObserving) {
+		waiterObserver.disconnect();
+		waiterObserving = false;
 	}
 }
 
-function waitForElement(selector, interval, callback, timeout = 1 * 60 * 1000) {
-	let wait = setInterval(() => {
-		let element = document.querySelector(selector);
-
-		if (element != null) {
-			stopInterval(wait);
-			callback();
+function checkWaiters() {
+	waiterCheckTimer = null;
+	for (const waiter of [...waiters]) {
+		if (!waiters.has(waiter)) continue; //removed while an earlier callback ran
+		const element = document.querySelector(waiter.selector);
+		if (!element) continue;
+		clearTimeout(waiter.timeoutId);
+		waiters.delete(waiter);
+		try {
+			waiter.callback(element);
+		} catch (error) {
+			log(error, true);
 		}
-	}, interval);
+	}
+	stopWaitingIfIdle();
+}
 
-	let stopInterval = (interval) => {
-		clearInterval(interval);
-		wait = undefined;
-		let index = intervalsArray.indexOf(interval); //get index of and remove the previously added interval from array when it's cleared
-		if (index !== -1) {
-			intervalsArray.splice(index, 1);
-		}
-	};
-
+/* Calls back once the selector matches. All pending selectors share a single throttled observer. */
+function waitForElement(selector, callback, timeout = 1 * 60 * 1000) {
+	const waiter = { selector, callback, timeoutId: null };
 	if (timeout) {
-		setTimeout(() => {
-			if (wait) {
-				stopInterval(wait);
-				log(`Did not find ${selector} after ${timeout}ms (${callback.name})`);
-			}
+		waiter.timeoutId = setTimeout(() => {
+			if (!waiters.delete(waiter)) return;
+			log(`Did not find ${selector} after ${timeout}ms (${callback.name})`);
+			stopWaitingIfIdle();
 		}, timeout);
 	}
-
-	intervalsArray.push(wait); //add current interval to array
+	waiters.add(waiter);
+	if (!waiterObserving) {
+		waiterObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-label'] });
+		waiterObserving = true;
+	}
+	scheduleWaiterCheck(0);
 }
 
-function alignItems() {
-	let playerElement = document.querySelector('#player-container-outer');
-	let content = document.querySelector('#columns > #primary > #primary-inner');
-	let videoInfoElement = document.querySelector('#columns > #primary > #primary-inner #info ytd-video-primary-info-renderer');
-	let flexPadding = 16;
-	let calcPadding = Math.floor(playerElement.getBoundingClientRect().left - flexPadding);
+function clearWaiters() {
+	for (const waiter of waiters) clearTimeout(waiter.timeoutId);
+	waiters.clear();
+	stopWaitingIfIdle();
+}
 
-	if (calcPadding <= 0 || calcPadding >= 1000 || playerElement == null || content == null || videoInfoElement == null) {
-		waitForElement('#columns > #primary > #primary-inner #info ytd-video-primary-info-renderer', 10, alignItems);
-		return;
-	} else if (!isTheater() && !isFullscreen()) {
-		const reduxAlignElement = document.querySelector('#redux-style-align');
-		const videoPlayer = document.querySelector('#player video');
-		const calcInner = `
-		#playlist > #container,
-		ytd-playlist-panel-renderer#playlist {
-			max-height: ${videoPlayer.getBoundingClientRect().height}px !important;
-		}
-		#columns.ytd-watch-flexy {
-			margin: 0 ${calcPadding}px !important;
-		}
-        `;
-
-		if (!reduxAlignElement) {
-			let customStyle = document.createElement("style");
-			customStyle.id = 'redux-style-align';
-			let customStyleInner = calcInner;
-			customStyle.appendChild(document.createTextNode(customStyleInner));
-			document.head.append(customStyle); 
-		} else {
-			reduxAlignElement.textContent = "";
-			reduxAlignElement.appendChild(document.createTextNode(calcInner));
-		}
-
-		alignRetry.startCount++;
-		if (alignRetry.startCount <= alignRetry.maxCount) {
-			setTimeout(alignItems, alignRetry.timeout);
-		} else {
-			alignRetry.startCount = 0;
-			return;
-		}
+/* ---------- auto confirm ---------- */
+function confirmIt() {
+	const confirmButton = document.querySelector('ytd-popup-container yt-confirm-dialog-renderer > #main > div.buttons > #confirm-button');
+	if (!confirmButton) return;
+	const buttonParent = confirmButton.closest('tp-yt-paper-dialog');
+	const buttonParentVisible = !!buttonParent && buttonParent.style.display !== 'none';
+	const buttonVisible = document.querySelector('ytd-popup-container tp-yt-paper-dialog:not([aria-hidden="true"])');
+	//only the 'Video paused' dialog comes without a cancel button
+	const popupElement = document.querySelector('ytd-popup-container yt-confirm-dialog-renderer > #main > div.buttons > yt-button-renderer');
+	const popupTypeCheck = !!popupElement && popupElement.hasAttribute('hidden');
+	if (buttonVisible && popupTypeCheck && buttonParentVisible) {
+		confirmButton.click();
+		document.querySelector('video')?.play()?.catch(() => {});
 	}
 }
 
-function changeLikesCounter() {
-	const fixLikes = () => {
-		let likesButton = document.querySelector('#above-the-fold #segmented-like-button button, #above-the-fold like-button-view-model button');
-		if (likesButton) {
-			let likesText = likesButton.querySelector('.ytSpecButtonShapeNextButtonTextContent');
-			let rawLikes = likesButton.getAttribute('aria-label')?.match(/(?=\d).*(?<=\d)/g) ? likesButton.getAttribute('aria-label').match(/(?=\d).*(?<=\d)/g)[0] : '';
-	
-			if (likesButton && rawLikes) {
-				likesText.innerText = rawLikes;
-			}
-		}
-	};
-
-	fixLikes();
-
-	const loop = setInterval(() => {
-		fixLikes();
-	}, 20);
-
-	setTimeout(() => {
-		if (loop != undefined) {
-			clearInterval(loop);
-		}
-	}, 10000);
+function startAutoConfirm() {
+	if (confirmInterval != undefined) return;
+	confirmInterval = setInterval(confirmIt, 500);
+	//simulate activity so that the popup shows up less often
+	setInterval(() => {
+		document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'F2', code: 'F2', keyCode: 113, which: 113 }));
+	}, 60000*10);
 }
 
+/* ---------- small player ---------- */
 function isTheater() {
-	if (document.querySelector('ytd-watch-flexy[theater]') != null) {
-		return true;
-	}
+	return document.querySelector('ytd-watch-flexy[theater]') != null;
 }
 
 function isFullscreen() {
-	if (document.querySelector('ytd-watch-flexy[fullscreen]') != null) {
-		return true;
+	return document.querySelector('ytd-watch-flexy[fullscreen]') != null;
+}
+
+let playerResizeObserver;
+let playerResizeTarget = null;
+let playerSyncQueued = false;
+const lastPlayerSync = { width: 0, height: 0, attempts: 0, time: 0 };
+
+/* YouTube's player lays itself out for the size it believes it has, which isn't the size the small player
+   styles give it. Tells the player its real size and limits the playlist panel to the player's height. */
+function syncPlayerSize() {
+	if (pageLocation !== PAGE_LOCATION.Video || isTheater() || isFullscreen()) return;
+	const container = document.querySelector('#player-container-outer');
+	const width = container ? container.clientWidth : 0;
+	const height = container ? container.clientHeight : 0;
+	if (!width || !height) return;
+
+	const calcInner = `
+		#playlist > #container,
+		ytd-playlist-panel-renderer#playlist {
+			max-height: ${height}px !important;
+		}
+	`;
+	let reduxAlignElement = document.querySelector('#redux-style-align');
+	if (!reduxAlignElement) {
+		reduxAlignElement = createElement('style', { id: 'redux-style-align' });
+		document.head.append(reduxAlignElement);
+	}
+	if (reduxAlignElement.textContent !== calcInner) {
+		reduxAlignElement.replaceChildren(document.createTextNode(calcInner));
+	}
+
+	const now = Date.now();
+	if (lastPlayerSync.width !== width || lastPlayerSync.height !== height || now - lastPlayerSync.time > 2000) {
+		Object.assign(lastPlayerSync, { width, height, attempts: 0 });
+	}
+	try {
+		const player = document.querySelector('#movie_player')?.wrappedJSObject;
+		if (typeof player?.setInternalSize !== 'function') return;
+		const current = typeof player.getPlayerSize === 'function' ? player.getPlayerSize() : null;
+		const matches = current && Math.abs(current.width - width) <= 1 && Math.abs(current.height - height) <= 1;
+		//the attempts limit keeps this from fighting the player in a loop if it never reports the requested size
+		if (!matches && lastPlayerSync.attempts < 5) {
+			lastPlayerSync.attempts++;
+			lastPlayerSync.time = now;
+			player.setInternalSize(width, height);
+		}
+	} catch (error) {
+		log(error, true);
 	}
 }
 
-function recalculateVideoSize() {
-
-	function addListenersForRecalc() {
-		let buttons = [
-			document.querySelector('.ytp-size-button')
-			//document.querySelector('.ytp-fullscreen-button')
-		];
-
-		for (let i = 0; i < buttons.length; i++) {
-			buttons[i].addEventListener('click', function() {
-				startRecalc();
-				setTimeout(alignItems, 40); //TODO slow systems may struggle with this timeout when exiting fullscreen - properly detect mode change
-			});
-		}
-
-		document.addEventListener("fullscreenchange", function() {
-			startRecalc();
-			setTimeout(alignItems, 40);
-		});
-
-		window.addEventListener('resize', () => {
-			let repeatInsert = setInterval(() => { //insert in loop for X seconds to prevent YT from overriding
-				let specialWidth = document.querySelector('video').offsetWidth;
-				let specialHeight = document.querySelector('video').offsetHeight;
-				insertRecalcScript(specialWidth, specialHeight);
-			}, 500);
-			setTimeout(() => {
-				clearInterval(repeatInsert);
-			}, 2000);
-			setTimeout(alignItems, 40);
-		});
-		flags.recalcListenersAdded = true;
-	}
-
-	function insertRecalcScript(width, height) {
-		if (width == undefined) {width = playerSize.width;}
-		if (height == undefined) {height = playerSize.height;}
-		let existingRecalc = document.querySelector('#redux-recalc');
-		if (existingRecalc) {existingRecalc.remove();}
-		let script = document.createElement('script');
-		script.id = 'redux-recalc';
-		let scriptInner = `
-            var player = document.querySelector('#movie_player');
-            player.setInternalSize(${width},${height});
-            `;
-		script.appendChild(document.createTextNode(scriptInner)); //manifest V2 solution
-		document.body.append(script);
-
-		if (!isCheckingRecalc) {
-			isCheckingRecalc = true;
-			let checkLoop = setInterval(() => {
-				checkIfProperlyRecalculated(width, height);
-			}, 100);
-    
-			setTimeout(() => {
-				clearInterval(checkLoop);
-				isCheckingRecalc = false;
-			}, 2000);
-
-		}
-
-		function checkIfProperlyRecalculated(width, height) {
-			let videoPlayerElement = document.querySelector('ytd-watch-flexy .html5-video-container');
-			let bottomBarElement = document.querySelector('#movie_player:not(.ytp-delhi-modern) .ytp-chrome-bottom');
-			if (videoPlayerElement != null && bottomBarElement != null && (bottomBarElement.offsetWidth < videoPlayerElement.offsetWidth*0.9)) {
-				insertRecalcScript(width, height);
-			}
-		}
-	}
-
-	function startRecalc() {
-		let checkingTimeout;
-		let retryTimeout = 2500; 
-		let retryCount = 0;
-		let retryInterval = 10;
-		let checkingVideo = setInterval(() => { //check in loop for X seconds if player size is correct; reset checking if it's not; applied to fix initial page elements load
-			let progressBar = document.querySelector('ytd-watch-flexy #movie_player:not(.ytp-delhi-modern) .ytp-chrome-bottom');
-			let leftEdgeDistancePlayer = document.querySelector('#player-container-outer').getBoundingClientRect().x;
-			let leftEdgeDistanceInfo = document.querySelector('#page-manager.ytd-app #primary-inner #info').getBoundingClientRect().x;
-			let videoElement = document.querySelector('video');
-			let widthCtrlElement = document.querySelector('#columns > #primary > #primary-inner #info');
-
-			if ((widthCtrlElement.offsetWidth) < (playerSize.width-1)) { //condition for starting page in small window
-				let specialWidth = document.querySelector('video').offsetWidth;
-				let specialHeight = document.querySelector('video').offsetHeight;
-				insertRecalcScript(specialWidth, specialHeight);
-			}
-
-			if (progressBar != null && (leftEdgeDistancePlayer > leftEdgeDistanceInfo+10 
-				|| (progressBar.offsetWidth+24) <= videoElement.offsetWidth*0.95 
-				|| (progressBar.offsetWidth+24) >= videoElement.offsetWidth*1.05) && !isTheater() && !isFullscreen()) { //TODO more precise condition
-				insertRecalcScript();
-				retryCount++;
-
-				if ((retryCount*retryInterval) >= retryTimeout) {
-					clearInterval(checkingVideo);
-				}
-
-				if (checkingTimeout != undefined) {
-					clearTimeout(checkingTimeout);
-					checkingTimeout = undefined;
-				}
-			} else {
-				if (checkingTimeout == undefined) {
-					checkingTimeout = setTimeout(() => {
-						clearInterval(checkingVideo);
-					}, retryTimeout);
-				}
-			}
-		}, retryInterval);
-	}
-	if (!flags.recalcListenersAdded) {
-		waitForElement('.ytp-size-button', 10, addListenersForRecalc);
-	} //to recalculate player size when changing between normal, theater and fullscreen modes
-	startRecalc();
+function schedulePlayerSync() {
+	if (playerSyncQueued) return;
+	playerSyncQueued = true;
+	requestAnimationFrame(() => {
+		playerSyncQueued = false;
+		syncPlayerSize();
+	});
 }
 
-function startObservingScrolling(mode) {
-	let maxComments = 20;
-	let commentsInterval = 20;
-	let commentsContElement;
-	let maxRelated;
-	let relatedInterval = 20;
+function watchPlayerSize() {
+	const container = document.querySelector('#player-container-outer');
+	if (container && container !== playerResizeTarget) {
+		playerResizeObserver ??= new ResizeObserver(schedulePlayerSync);
+		if (playerResizeTarget) playerResizeObserver.unobserve(playerResizeTarget);
+		playerResizeObserver.observe(container);
+		playerResizeTarget = container;
+	}
+	//the player writes its size to the video element whenever it recalculates its own layout
+	const video = document.querySelector('#movie_player video');
+	if (video) track('playerVideo', video, { attributes: true, attributeFilter: ['style'] }, schedulePlayerSync);
+	if (!flags.playerListenersAdded) {
+		document.addEventListener('fullscreenchange', schedulePlayerSync);
+		flags.playerListenersAdded = true;
+	}
+	lastPlayerSync.attempts = 0;
+	schedulePlayerSync();
+}
+
+/* ---------- infinite scrolling ---------- */
+function createShowMoreButton(id, wrapperStyle, buttonStyle, onClick) {
+	const expandButton = document.querySelector('#description tp-yt-paper-button#expand');
+	const button = createElement('input', { type: 'button', value: expandButton?.textContent.trim() || t('showMore') });
+	button.style.cssText = SHOW_MORE_STYLE + buttonStyle;
+	const wrapper = createElement('div', { id }, [button]);
+	wrapper.style.cssText = wrapperStyle;
+	wrapper.addEventListener('click', () => {
+		onClick();
+		window.scrollBy({top: 50, left: 0, behavior: "smooth"});
+		wrapper.remove();
+	});
+	return wrapper;
+}
+
+function limitComments() {
+	const contentsElement = document.querySelector('#comments > #sections > #contents.style-scope.ytd-item-section-renderer');
+	if (!contentsElement) return;
+	const commentsInterval = 20;
+	let maxComments = commentsInterval;
+	const observerComments = new MutationObserver(disableInfiniteComments);
+	const observe = () => observerComments.observe(contentsElement, { childList: true });
+
+	function disableInfiniteComments() {
+		const comments = document.querySelectorAll('#contents > ytd-comment-thread-renderer');
+		const commentsContElement = document.querySelector('ytd-comments#comments ytd-item-section-renderer > #contents > ytd-comment-thread-renderer + ytd-continuation-item-renderer');
+		if (comments.length < maxComments || commentsContElement == null) return;
+		observerComments.disconnect();
+		commentsContElement.remove();
+		if (document.querySelector('#show-more-comments') == null) {
+			contentsElement.append(createShowMoreButton('show-more-comments', 'text-align:center; margin-bottom: 16px; margin-right: 15px;', ' padding-bottom: 8px;', () => {
+				contentsElement.append(commentsContElement);
+				maxComments += commentsInterval;
+				observe();
+			}));
+		}
+	}
+
+	function resetCommentsObserver() {
+		document.querySelectorAll('#contents > ytd-comment-thread-renderer').forEach(element => element.remove());
+		document.querySelector('#show-more-comments')?.remove();
+		maxComments = commentsInterval;
+		observe();
+	}
+
+	document.querySelector('#show-more-comments')?.remove();
+	observe();
+	disableInfiniteComments();
+	document.querySelectorAll('div[slot="dropdown-content"] > #menu > a').forEach(element => {
+		element.onclick = resetCommentsObserver;
+	});
+	pageCleanups.push(() => observerComments.disconnect());
+}
+
+function limitRelated() {
+	const relatedInterval = 20;
 	let relatedElement;
 	let related;
 	let relatedContinuation;
-	const moreButtonSeletor = '#description tp-yt-paper-button#expand';
+	let maxRelated;
+	const observerRelated = new MutationObserver(disableInfiniteRelated);
+	const observe = () => observerRelated.observe(relatedElement, { childList: true });
 
-	function disableInfiniteComments() {
-		let comments = document.querySelectorAll('#contents > ytd-comment-thread-renderer');
-		commentsContElement = document.querySelector('ytd-comments#comments ytd-item-section-renderer > #contents > ytd-comment-thread-renderer + ytd-continuation-item-renderer');
-		if (comments.length >= maxComments && commentsContElement != null) {
-			observerComments.disconnect();
-			commentsContElement.remove();
-			if (document.querySelector('#show-more-comments') == null) {
-				addCommentsButton();
-			}
-		}
+	function setLayoutDifferences() {
+		const items = document.querySelector(RELATED_ITEMS);
+		//the related videos are nested one level deeper depending on the YT language
+		relatedElement = items && items.childElementCount <= 3 ? items.querySelector(':scope > ytd-item-section-renderer > #contents') : items;
+		if (!relatedElement) return false;
+		related = relatedElement.querySelectorAll('yt-lockup-view-model');
+		relatedContinuation = relatedElement.querySelector('ytd-continuation-item-renderer');
+		return true;
+	}
+
+	function addRelatedButton() {
+		const continueElement = relatedContinuation;
+		relatedElement.append(createShowMoreButton('show-more-related', 'text-align:center; margin-top: 4px; margin-right: 15px', '', () => {
+			relatedElement.append(continueElement);
+			maxRelated += relatedInterval;
+			observe();
+		}));
 	}
 
 	function disableInfiniteRelated() {
-		setLayoutDifferences();
+		if (!setLayoutDifferences()) return;
 		if (related.length >= maxRelated && relatedContinuation != null) {
 			observerRelated.disconnect();
 			relatedContinuation.remove();
@@ -313,228 +331,269 @@ function startObservingScrolling(mode) {
 		}
 	}
 
-	function addCommentsButton() {
-		let showMoreComments = document.createElement('div');
-		let continueElement = commentsContElement;
-		let showMoreText = document.querySelector(moreButtonSeletor) == null ? 'SHOW MORE' : document.querySelector(moreButtonSeletor).textContent;
-		showMoreComments.id = 'show-more-comments';
-		showMoreComments.style = 'text-align:center; margin-bottom: 16px; margin-right: 15px;';
-		showMoreComments.innerHTML = '<input type="button" style="font-family: Roboto, Arial, sans-serif; padding-top: 9px; width: 100%; border-top: 1px solid #e2e2e2; border-bottom: none; border-left: none; border-right: none; background:none; font-size: 1.1rem; outline: none; cursor:pointer; text-transform: uppercase; font-weight: 500; color: var(--redux-spec-text-secondary); letter-spacing: 0.007px; padding-bottom: 8px;"></input>';
-		showMoreComments.querySelector('input').value = showMoreText;
-		contentsElement.append(showMoreComments);
-
-		document.querySelector('#show-more-comments').onclick = function() {
-			let comments = document.querySelector('ytd-comments#comments ytd-item-section-renderer > #contents');
-			comments.append(continueElement);
-			window.scrollBy({top: 50, left: 0, behavior: "smooth"});
-			this.remove();
-			maxComments += commentsInterval;
-			observerComments.observe(contentsElement, observerConfig);
-		};
+	document.querySelector('#show-more-related')?.remove();
+	if (!setLayoutDifferences()) return;
+	maxRelated = related.length >= 39 ? 20 : related.length; //to reset max on url change;
+	if (related.length >= maxRelated && relatedContinuation != null) {
+		relatedContinuation.remove();
+		addRelatedButton();
 	}
+	observe();
+	pageCleanups.push(() => observerRelated.disconnect());
+}
 
-	function addRelatedButton() {
-		let showMoreRelated = document.createElement('div');
-		let continueElement = relatedContinuation;
-		let showMoreText = document.querySelector(moreButtonSeletor) == null ? 'SHOW MORE' : document.querySelector(moreButtonSeletor).textContent;
-		showMoreRelated.id = 'show-more-related';
-		showMoreRelated.style = 'text-align:center; margin-top: 4px; margin-right: 15px';
-		showMoreRelated.innerHTML = '<input type="button" style="font-family: Roboto, Arial, sans-serif; padding-top: 9px; width: 100%; border-top: 1px solid #e2e2e2; border-bottom: none; border-left: none; border-right: none; background:none; font-size: 1.1rem; outline: none; cursor:pointer; text-transform: uppercase; font-weight: 500; color: var(--redux-spec-text-secondary); letter-spacing: 0.007px;"></input>';
-		showMoreRelated.querySelector('input').value = showMoreText;
-		relatedElement.append(showMoreRelated);
-
-		document.querySelector('#show-more-related').onclick = function() {
-			relatedElement.append(continueElement);
-			window.scrollBy({top: 50, left: 0, behavior: "smooth"});
-			this.remove();
-			maxRelated += relatedInterval;
-			observerRelated.observe(relatedElement, observerConfig);
-		};
-	}
-
-	function setLayoutDifferences() {
-		if (document.querySelector('#secondary > #secondary-inner > #related > ytd-watch-next-secondary-results-renderer > #items').childElementCount <= 3) { //condition for differences in layout between YT languages
-			relatedElement = document.querySelector('#secondary > #secondary-inner > #related > ytd-watch-next-secondary-results-renderer > #items > ytd-item-section-renderer > #contents');
-			related = relatedElement.querySelectorAll('yt-lockup-view-model');
-			relatedContinuation = relatedElement.querySelector('ytd-continuation-item-renderer');
-		} else {
-			relatedElement = document.querySelector('#secondary > #secondary-inner > #related > ytd-watch-next-secondary-results-renderer > #items');
-			related = relatedElement.querySelectorAll('yt-lockup-view-model');
-			relatedContinuation = relatedElement.querySelector('ytd-continuation-item-renderer');
-		}
-	}
-
-	const observerConfig = {
-		childList: true
+/* ---------- old video page layout ---------- */
+function readVideoInfo() {
+	const tooltip = document.querySelector(INFO_TOOLTIP);
+	const parts = (tooltip ? tooltip.textContent : '').split('•');
+	return {
+		loaded: parts[0].trim() !== '',
+		views: parts[0].trim(),
+		date: (parts[1] || '').trim()
 	};
-	const contentsElement = document.querySelector('#comments > #sections > #contents.style-scope.ytd-item-section-renderer');
+}
 
-	if (mode === INFINITE_SCROLLING_MODE.Comments) {
-		if (!!document.querySelector('#show-more-comments')) {document.querySelector('#show-more-comments').remove();}
-		observerComments = new MutationObserver(disableInfiniteComments);
-		observerComments.observe(contentsElement, observerConfig);
-
-		const sortButtons = document.querySelectorAll('div[slot="dropdown-content"] > #menu > a');
-		sortButtons.forEach(element => {
-			element.onclick = resetCommentsObserver;
-		});
-	} else if (mode === INFINITE_SCROLLING_MODE.Related) {
-		if (!!document.querySelector('#show-more-related')) {document.querySelector('#show-more-related').remove();}
-		setLayoutDifferences();
-
-		maxRelated = related.length >= 39 ? 20 : related.length; //to reset max on url change;
-		if (related.length >= maxRelated && relatedContinuation != null) {
-			relatedContinuation.remove();
-			addRelatedButton();
-		}
-		observerRelated = new MutationObserver(disableInfiniteRelated);
-		observerRelated.observe(relatedElement, observerConfig);
-	}
-
-	function resetCommentsObserver() {
-		const comments = document.querySelectorAll('#contents > ytd-comment-thread-renderer');
-		comments.forEach(element => {
-			element.remove();
-		});
-		if (!!document.querySelector('#show-more-comments')) {document.querySelector('#show-more-comments').remove();}
-		maxComments = 20;
-		observerComments.observe(contentsElement, observerConfig);
-	}
+function createLikeBar() {
+	const likeBar = createElement('div', { id: 'like-bar', className: 'style-scope ytd-sentiment-bar-renderer redux-like-bar' });
+	const container = createElement('div', { id: 'container', className: 'style-scope ytd-sentiment-bar-renderer redux-like-bar-container' }, [likeBar]);
+	return createElement('div', null, [container]);
 }
 
 function rearrangeInfo() {
 	const videoInfo = document.querySelector('#primary-inner ytd-watch-metadata');
+	if (!videoInfo || flags.isRearranged) return;
 	// primary div
 	const container = videoInfo.querySelector('#above-the-fold');
 	const topRow = videoInfo.querySelector('#top-row');
 	const owner = videoInfo.querySelector('#owner');
 	const uploadInfo = videoInfo.querySelector('#upload-info');
-	const reduxSubDiv = document.createElement('div');
-	reduxSubDiv.id = 'reduxSubDiv';
+	const description = videoInfo.querySelector("#description");
+	if (!container || !topRow || !owner || !uploadInfo || !description || topRow.parentElement !== container) return;
+
 	const subButton = videoInfo.querySelector('#subscribe-button');
 	const subCount = videoInfo.querySelector('#owner-sub-count');
-	const viewsAndDate = videoInfo.querySelector('#description tp-yt-paper-tooltip:not([disable-upgrade]) > #tooltip');
-	const views = viewsAndDate.innerText.split('•')[0];
-	const date = viewsAndDate.innerText.split('•')[1];
-	const description = videoInfo.querySelector("#description");
-	const miscButton = videoInfo.querySelector('#above-the-fold #button-shape');
-	const miscButtonTargetContainer = videoInfo.querySelector('#above-the-fold #top-level-buttons-computed');
+	const { views, date } = readVideoInfo();
 
+	const reduxSubDiv = createElement('div', { id: 'reduxSubDiv' });
 	uploadInfo.append(reduxSubDiv);
-	reduxSubDiv.append(subButton);
-	reduxSubDiv.append(subCount);
+	if (subButton) reduxSubDiv.append(subButton);
+	if (subCount) reduxSubDiv.append(subCount);
 
 	// move owner info between title and top row buttons
 	container.insertBefore(owner, topRow);
 
 	// video stats div
-	const reduxViewsLikesContainer = document.createElement('div');
-	reduxViewsLikesContainer.id = 'redux-video-stats';
-
-	const reduxViewsCount = document.createElement('div');
-	reduxViewsCount.id = 'redux-views-count';
-	reduxViewsCount.innerText = views.trim();
-	reduxViewsCount.setAttribute('redux-url-check', window.location.search);
-
-	reduxViewsLikesContainer.append(reduxViewsCount);
-	const likeBar = document.createElement('div');
-	likeBar.innerHTML = `<div id="container" class="style-scope ytd-sentiment-bar-renderer redux-like-bar-container">
-	<div id="like-bar" class="style-scope ytd-sentiment-bar-renderer redux-like-bar"></div>
-	</div>`;
-	reduxViewsLikesContainer.append(likeBar);
-	owner.append(reduxViewsLikesContainer);
+	const reduxViewsCount = createElement('div', { id: 'redux-views-count', textContent: views });
+	owner.append(createElement('div', { id: 'redux-video-stats' }, [reduxViewsCount, createLikeBar()]));
 
 	// secondary div with description
-	const reduxMovedDate = document.createElement('div');
-	reduxMovedDate.id = 'redux-moved-date';
-	reduxMovedDate.innerText = date;
-	description.prepend(reduxMovedDate);
-	description.setAttribute('redux-url-check', window.location.search);
-	const secondaryReduxDiv = document.createElement('div');
-	secondaryReduxDiv.id = 'secondary-redux-div';
-
-	// if (reduxSettings.altVideoLayout) {
-	// 	const videoTitle = document.querySelector('#above-the-fold #title');
-	// 	let reduxHeader = document.createElement('div');
-	// 	reduxHeader.id = 'redux-video-header';
-	// 	primaryElement.prepend(reduxHeader);
-
-	// 	if (!reduxSettings.extraLayout) {
-	// 		reduxHeader.style = 'background-color: transparent; box-shadow: none !important;';
-	// 	}
-
-	// 	reduxHeader.append(videoTitle);
-	// 	reduxHeader.append(videoInfo);
-	// }
+	description.prepend(createElement('div', { id: 'redux-moved-date', textContent: date }));
 
 	flags.isRearranged = true;
 }
 
-function addMissingVideoPageElements() {
-	//move to description observer instead of interval
-	const loop = setInterval(() => {
-		const viewsAndDate = document.querySelector('#description tp-yt-paper-tooltip:not([disable-upgrade]) > #tooltip');
-		const views = viewsAndDate.innerText.split('•')[0];
-		const date = viewsAndDate.innerText.split('•')[1];
-		const reduxViewsLikesContainer = document.querySelector('#redux-video-stats');
-		const reduxViewsCount = document.querySelector("#redux-views-count");
-		reduxViewsCount.setAttribute('redux-url-check', window.location.search);
-		reduxViewsCount.innerText = views.trim();
+/* Keeps the moved views count and upload date in line with the video that's currently shown. */
+function updateVideoInfo() {
+	if (!flags.isRearranged) return;
+	const { loaded, views, date } = readVideoInfo();
+	if (loaded) {
+		setText(document.querySelector('#redux-views-count'), views);
+		setText(document.querySelector('#redux-moved-date'), date);
+	}
 
-		const existingMovedDate = document.querySelector('#redux-moved-date');
-		if (existingMovedDate && existingMovedDate.innerText != date) {
-			existingMovedDate.innerText = date;
-		}
-
-		const existingLikesBar = document.querySelector('.redux-like-bar');
-		if (!existingLikesBar) {
-			const likeBar = document.createElement('div');
-			likeBar.innerHTML = `<div id="container" class="style-scope ytd-sentiment-bar-renderer redux-like-bar-container">
-			<div id="like-bar" class="style-scope ytd-sentiment-bar-renderer redux-like-bar"></div>
-			</div>`;
-			reduxViewsLikesContainer.append(likeBar);
-
-			if (reduxSettings.compatibleDislikesRe) {
-				updateDislikes(); //move outside the inverval/observer to avoid spamming calls?
-			}
-		}
-	}, 100);
-
-	setTimeout(() => {
-		if (loop != undefined) {
-			clearInterval(loop);
-		}
-	}, 10000);
+	const reduxViewsLikesContainer = document.querySelector('#redux-video-stats');
+	if (reduxViewsLikesContainer && !document.querySelector('.redux-like-bar')) {
+		reduxViewsLikesContainer.append(createLikeBar());
+		updateLikeCounters();
+	}
+	if (reduxSettings.trimViews) trimViews();
 }
 
-function clearStoredIntervals() {
-	intervalsArray.forEach(element => {
-		clearInterval(element);
-		intervalsArray.shift();
-	});
+/* ---------- likes and dislikes ---------- */
+function stripSeparators(text) {
+	return text.replace(/[,.\s]/g, '');
 }
 
-function splitTrending() {
-	let elems = document.querySelectorAll('ytd-two-column-browse-results-renderer:not([page-subtype="subscriptions"]) #contents > ytd-expanded-shelf-contents-renderer > #grid-container > ytd-video-renderer');
-	if (elems.length == 0) { //repeat because it can be emptied when navigating through different pages
-		setTimeout(() =>{splitTrending();}, 1000);
+function formatNumber(number, sample) {
+	let separator = ' ';
+	if (sample.includes('.')) {
+		separator = '.';
+	} else if (sample.includes(',')) {
+		separator = ',';
+	}
+	return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+}
+
+/* Shows precise likes (taken from the button's label) and, when Return YouTube Dislike is installed,
+   precise dislikes and the likes bar (taken from its tooltip, e.g. '6,312 / 104'). */
+function updateLikeCounters() {
+	const likesButton = document.querySelector(LIKE_BUTTON);
+	const rawLikes = likesButton?.getAttribute('aria-label')?.match(/\d(?:.*\d)?/)?.[0] || '';
+	if (reduxSettings.showRawValues && rawLikes) {
+		setContestedText(likesButton.querySelector(BUTTON_TEXT), rawLikes);
+	}
+
+	if (!reduxSettings.compatibleDislikesRe) return;
+	const dislikesSource = document.querySelector('#top-level-buttons-computed .ryd-tooltip #tooltip');
+	if (!dislikesSource) return;
+	const sourceText = dislikesSource.textContent;
+	const rawDislikes = stripSeparators(sourceText.includes('/') ? sourceText.slice(sourceText.indexOf('/') + 1) : sourceText);
+	const dislikes = parseInt(rawDislikes);
+	if (isNaN(dislikes)) return;
+
+	if (reduxSettings.showRawValues) {
+		const views = document.querySelector('#redux-views-count')?.textContent || '';
+		setContestedText(document.querySelector(`#above-the-fold dislike-button-view-model button ${BUTTON_TEXT}`), formatNumber(dislikes, views + rawLikes));
+	}
+
+	const likes = parseInt(stripSeparators(rawLikes));
+	const likeBar = document.querySelector('#above-the-fold #like-bar.ytd-sentiment-bar-renderer');
+	if (likeBar && !isNaN(likes) && likes + dislikes > 0) {
+		const width = (likes / (likes + dislikes)) * 100 + '%';
+		if (likeBar.style.width !== width) likeBar.style.width = width;
+	}
+}
+
+function trackLikeCounters(buttonsContainer) {
+	track('likes', buttonsContainer, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['aria-label'] }, updateLikeCounters);
+	updateLikeCounters();
+}
+
+/* ---------- strings ---------- */
+function trimSubs() {
+	const subString = document.querySelector('#reduxSubDiv > #owner-sub-count') || document.querySelector('#info #owner-sub-count');
+	const container = document.querySelector('#reduxSubDiv');
+	if (!subString || !container) return;
+
+	const trimmed = subString.textContent.trim().replace(/\s+\S*$/g, '');
+	let reduxTrimSpan = document.querySelector('#redux-trim-span');
+	if (trimmed === '') {
+		reduxTrimSpan?.remove();
 		return;
 	}
-	for (let i = 0; i < elems.length; i++) {
-		if (i % 2 != 0) {elems[i].style.float = 'left';}
-		elems[i].style.width = '50%';
-		let description = elems[i].querySelector('yt-formatted-string#description-text');
-		description.style.fontSize = '1.2rem';
-		description.style.paddingTop = '4px';
-		description.style.maxHeight = 'calc(2 * var(--yt-thumbnail-attribution-line-height, 3.5rem))';
+	if (!reduxTrimSpan) {
+		reduxTrimSpan = createElement('span', { id: 'redux-trim-span', className: 'style-scope ytd-video-owner-renderer' });
+		container.insertBefore(reduxTrimSpan, subString);
+	}
+	setText(reduxTrimSpan, trimmed);
+}
+
+function trimViews() {
+	const views = document.querySelector('#redux-views-count') || document.querySelector('span.view-count:not(#redux-views-count-trimmed)');
+	const container = document.querySelector('#redux-video-stats') || document.querySelector('#count ytd-video-view-count-renderer');
+	if (!views || !container) return;
+
+	let reduxViewsTrimmed = document.querySelector('#redux-views-count-trimmed');
+	if (!reduxViewsTrimmed) {
+		reduxViewsTrimmed = createElement('span', { id: 'redux-views-count-trimmed', className: 'view-count style-scope ytd-video-view-count-renderer' });
+		container.prepend(reduxViewsTrimmed);
+	}
+	views.style.display = 'none';
+	setText(reduxViewsTrimmed, views.textContent.replace(/[^,.\d\s]/g,'').trim());
+	track('views', views, TEXT_CHANGES, trimViews);
+}
+
+/* Finds one of the buttons below the player (Save, Thanks, ...) through YouTube's own data. */
+function findFlexibleButton(iconNames) {
+	try {
+		const menu = document.querySelector('#above-the-fold ytd-menu-renderer');
+		const items = menu?.wrappedJSObject?.data?.flexibleItems;
+		const buttons = menu?.querySelector('#flexible-item-buttons')?.children;
+		if (!items || !buttons) return null;
+		for (let i = 0; i < items.length; i++) {
+			const iconName = items[i]?.menuFlexibleItemRenderer?.topLevelButton?.buttonViewModel?.iconName;
+			if (iconNames.includes(iconName)) return buttons[i] || null;
+		}
+	} catch (error) {
+		log(error, true);
+	}
+	return null;
+}
+
+function updateFlexibleButtons() {
+	if (reduxSettings.hideThanks) {
+		const thanksButton = findFlexibleButton(FLEXIBLE_ICONS.thanks)
+			|| document.querySelector('#above-the-fold path[d^="M16.25 2A6.7 6.7 0 0012 3.509"]')?.closest('#flexible-item-buttons > *')
+			|| null;
+		if (thanksButton !== hiddenThanksButton) {
+			hiddenThanksButton?.removeAttribute('redux-hidden');
+			thanksButton?.setAttribute('redux-hidden', '');
+			hiddenThanksButton = thanksButton;
+		}
+	}
+	if (reduxSettings.altStrings) {
+		setContestedText(findFlexibleButton(FLEXIBLE_ICONS.save)?.querySelector(BUTTON_TEXT), t('addTo'));
 	}
 }
 
-function splitTrendingLoop() {
-	let splitLoop = setInterval(splitTrending, 100);
-	setTimeout(() => {clearInterval(splitLoop);}, 5000);
+/* ---------- autoplay ---------- */
+function addOldAutoplay() {
+	let reduxAutoplay = document.querySelector('#redux-autoplay');
+
+	if (getRelatedVideosType() != relatedVideosType) {
+		setRelatedVideosType();
+		if (reduxAutoplay) {
+			reduxAutoplay.remove();
+			reduxAutoplay = null;
+		}
+	}
+
+	const originalAutoplay = document.querySelector('[data-tooltip-target-id="ytp-autonav-toggle-button"]');
+	if (window.location.href.includes('&list') || reduxAutoplay || !originalAutoplay) return;
+
+	const relatedContainer = document.querySelector('#secondary-inner.ytd-watch-flexy #related #items ytd-item-section-renderer #contents') || document.querySelector('#secondary-inner.ytd-watch-flexy #related #items');
+	if (!relatedContainer) return;
+
+	const label = createElement('span', { id: 'redux-autoplay-label' });
+	const checkbox = createElement('input', { id: 'redux-autoplay-checkbox', type: 'checkbox' });
+	const toggle = createElement('span', { className: 'redux-autoplay-checkbox-toggle' }, [
+		checkbox,
+		createElement('label', { id: 'redux-autoplay-checkbox-label', htmlFor: 'redux-autoplay-checkbox' }, [
+			createElement('span', { className: 'checked' }),
+			createElement('span', { className: 'toggle' }),
+			createElement('span', { className: 'unchecked' })
+		])
+	]);
+	const autoplayElement = createElement('div', { id: 'redux-autoplay' }, [
+		// the up next title stays empty: YT no longer exposes the next autoplayed item in the related column
+		createElement('div', { className: 'redux-auto-left' }, [createElement('span', { id: 'redux-autoplay-upnext' })]),
+		createElement('div', { className: 'redux-auto-right' }, [label, toggle])
+	]);
+	autoplayElement.style.cssText = 'display: flex; justify-content: space-between; padding-right: 24px; padding-bottom: 2px;';
+	relatedContainer.parentElement.insertBefore(autoplayElement, relatedContainer);
+	toggle.addEventListener('click', () => originalAutoplay.click());
+
+	//mirror the player's own toggle, whose label and state are filled in after it's created
+	track('autoplay', originalAutoplay, { attributes: true, subtree: true, attributeFilter: ['aria-label', 'aria-checked'] }, syncOldAutoplay);
+	syncOldAutoplay();
 }
 
+function syncOldAutoplay() {
+	const originalAutoplay = document.querySelector('[data-tooltip-target-id="ytp-autonav-toggle-button"]');
+	const checkbox = document.querySelector('#redux-autoplay-checkbox');
+	if (!originalAutoplay || !checkbox) return;
+	setText(document.querySelector('#redux-autoplay-label'), originalAutoplay.getAttribute('aria-label') || '');
+	checkbox.checked = originalAutoplay.querySelector('div[aria-checked]')?.getAttribute('aria-checked') === 'true';
+}
+
+function moveAutoplay() {
+	addOldAutoplay();
+	//the related column and the player controls may still be rendering
+	const related = document.querySelector('#secondary-inner.ytd-watch-flexy #related');
+	if (!related) return;
+	const observer = new MutationObserver(addOldAutoplay);
+	observer.observe(related, { childList: true, subtree: true });
+	const stop = setTimeout(() => observer.disconnect(), 10000);
+	pageCleanups.push(() => {
+		observer.disconnect();
+		clearTimeout(stop);
+	});
+	if (!window.location.href.includes('&list') && !document.querySelector('#redux-autoplay')) {
+		waitForElement('[data-tooltip-target-id="ytp-autonav-toggle-button"]', addOldAutoplay, 10000);
+	}
+}
+
+/* ---------- misc ---------- */
 function preventScrolling() {
 
 	function scrollingAction(e) {
@@ -549,13 +608,15 @@ function preventScrolling() {
 
 	document.addEventListener('fullscreenchange', function() {
 		setTimeout(() => { //timeout accomodates for fullscreen transition animation
+			const fullerscreenButton = document.querySelector('.ytp-right-controls > button.ytp-fullerscreen-edu-button.ytp-button');
+			const chapters = document.querySelector('.ytp-chapter-container');
 			if (isFullscreen()) {
-				document.querySelector('.ytp-right-controls > button.ytp-fullerscreen-edu-button.ytp-button').style.display = 'none';
-				document.querySelector('.ytp-chapter-container').style.pointerEvents = 'none';
+				if (fullerscreenButton) fullerscreenButton.style.display = 'none';
+				if (chapters) chapters.style.pointerEvents = 'none';
 				document.addEventListener('wheel', scrollingAction, {passive: false});
 				document.addEventListener('keydown', keysAction, {passive: false});
 			} else {
-				document.querySelector('.ytp-chapter-container').style.pointerEvents = null;
+				if (chapters) chapters.style.pointerEvents = '';
 				document.removeEventListener('wheel', scrollingAction, {passive: false});
 				document.removeEventListener('keydown', keysAction, {passive: false});
 			}
@@ -568,293 +629,62 @@ function preventScrolling() {
 function sortPlaylists() {
 	const baseTimeout = 250;
 	const playlistsSelector = '[page-subtype="home"] ytd-two-column-browse-results-renderer #content .ytLockupViewModelCollectionStack2';
+	const timers = [];
+	const later = (callback, delay) => timers.push(setTimeout(callback, delay));
+	let observerPlaylistItems;
 
-	setTimeout(() => {
-		let playlistItems = document.querySelectorAll(playlistsSelector);
-		let itemsContainer = document.querySelector('[page-subtype="home"] #contents.ytd-rich-grid-renderer:not(.redux-playlist)');
-		let currentLength = playlistItems.length;
-		if (currentLength == 0) return;
-    
-		for (let i = 0; i < playlistItems.length; i++) {
-			let parentEl = playlistItems[i].closest('ytd-rich-item-renderer');
+	function reorderNewPlaylistItems() {
+		const alreadyReorderedItems = document.querySelectorAll('.redux-reordered-playlist-item');
+		const playlistItems = document.querySelectorAll(playlistsSelector);
 
-			setTimeout(() => {
-				parentEl.style = 'transition-duration:0.25s; opacity: 0;';
+		for (let i = alreadyReorderedItems.length; i < playlistItems.length; i++) {
+			const parentEl = playlistItems[i].closest('ytd-rich-item-renderer');
+			if (!parentEl) continue;
+			later(() => {
+				parentEl.style.order = `-${i+1}`;
 				parentEl.classList.add('redux-reordered-playlist-item');
-			}, 0);
+			}, baseTimeout);
+		}
+	}
 
-			setTimeout(() => {
+	later(() => {
+		const playlistItems = document.querySelectorAll(playlistsSelector);
+		const itemsContainer = document.querySelector('[page-subtype="home"] #contents.ytd-rich-grid-renderer:not(.redux-playlist)');
+		if (playlistItems.length == 0) return;
+
+		playlistItems.forEach((item, i) => {
+			const parentEl = item.closest('ytd-rich-item-renderer');
+			if (!parentEl) return;
+			parentEl.style.cssText = 'transition-duration:0.25s; opacity: 0;';
+			parentEl.classList.add('redux-reordered-playlist-item');
+			later(() => {
 				parentEl.style.order = `-${i+1}`;
 			}, baseTimeout);
-
-			setTimeout(() => {
+			later(() => {
 				parentEl.style.opacity = '1';
 			}, baseTimeout*2);
-		}
+		});
 
-		function reorderNewPlaylistItems() {
-			const alreadyReorderedItems = document.querySelectorAll('.redux-reordered-playlist-item');
-			const playlistItems = document.querySelectorAll(playlistsSelector);
-
-			for (let i = alreadyReorderedItems.length; i < playlistItems.length; i++) {
-				let parentEl = playlistItems[i].closest('ytd-rich-item-renderer');
-
-				setTimeout(() => {
-					parentEl.style.order = `-${i+1}`;
-					parentEl.classList.add('redux-reordered-playlist-item');
-				}, baseTimeout);
-			}
-		}
-            
-		if (reduxSettings.sortFoundPlaylists) {
-			setTimeout(() => {
-				let observerConfig = {
-					childList: true
-				};
-				let observerPlaylistItems = new MutationObserver(reorderNewPlaylistItems);
-				observerPlaylistItems.observe(itemsContainer, observerConfig);
+		if (reduxSettings.sortFoundPlaylists && itemsContainer) {
+			later(() => {
+				observerPlaylistItems = new MutationObserver(reorderNewPlaylistItems);
+				observerPlaylistItems.observe(itemsContainer, { childList: true });
 			}, baseTimeout*2);
 		}
-    
 	}, baseTimeout);
-}
 
-function trimStrings() {
-	trimSubs();
-
-	let checkForChannelChange = setInterval(() => {
-		let subString = document.querySelector('#reduxSubDiv > #owner-sub-count') || document.querySelector('#info #owner-sub-count');
-		let channelElement = document.querySelector('#upload-info a[href]');
-		if (subString.getAttribute('redux-sub-check') !== channelElement.href) {
-			trimSubs();
-			clearInterval(checkForChannelChange);
-		}
-	}, 50);
-
-	setTimeout(() => {
-		if (checkForChannelChange) {
-			clearInterval(checkForChannelChange);
-		}
-	}, 10000);
-
-	function trimSubs() {
-		let subString = document.querySelector('#reduxSubDiv > #owner-sub-count') || document.querySelector('#info #owner-sub-count');
-		let channelElement = document.querySelector('#upload-info a[href]');
-		subString.setAttribute('redux-sub-check', channelElement.href);
-
-		let existingSpan = document.querySelector('#redux-trim-span');
-		if (subString.innerText === '') {
-			if (existingSpan) existingSpan.remove();
-			return;
-		} else if (existingSpan) {
-			existingSpan.innerText = subString.innerText.replace(/\s+\S*$/g, '');
-			return;
-		}
-
-		let reduxTrimSpan = document.createElement('span');
-		reduxTrimSpan.id = 'redux-trim-span';
-		reduxTrimSpan.innerText = subString.innerText.replace(/\s+\S*$/g, '');
-		reduxTrimSpan.classList.add('style-scope', 'ytd-video-owner-renderer');
-
-		let container = document.querySelector('#reduxSubDiv');
-		container.insertBefore(reduxTrimSpan, subString);
-	}
-}
-
-function trimViews() {
-	let views = document.querySelector('#redux-views-count') || document.querySelector('span.view-count:not(#redux-views-count-trimmed)');
-	let reduxViewsTrimmed = document.querySelector('#redux-views-count-trimmed');
-	if (reduxViewsTrimmed) return;
-	views.style.display = 'none';
-	let container = document.querySelector('#redux-video-stats') || document.querySelector('#count ytd-video-view-count-renderer');
-	reduxViewsTrimmed = document.createElement('span');
-	reduxViewsTrimmed.id = 'redux-views-count-trimmed';
-	reduxViewsTrimmed.classList.add('view-count', 'style-scope', 'ytd-video-view-count-renderer');
-	container.prepend(reduxViewsTrimmed);
-
-	const modifyViews = () => {
-		let views = document.querySelector('#redux-views-count') || document.querySelector('span.view-count:not(#redux-views-count-trimmed)');
-		let reduxViewsTrimmed = document.querySelector('#redux-views-count-trimmed');
-		reduxViewsTrimmed.textContent = views.textContent.replace(/[^,.\d\s]/g,'').trim();
-	};
-
-	modifyViews();
-
-	let viewsObserver = new MutationObserver(modifyViews);
-	viewsObserver.observe(views, {attributes: true});
-}
-
-function alternativeStrings() {
-	let saveButton = document.querySelector('#above-the-fold #flexible-item-buttons button .ytSpecButtonShapeNextButtonTextContent');
-	saveButton.innerText = 'Add to';
-}
-
-function hideThanks() {
-	const thanksButton = document.querySelector('#above-the-fold path[d="M16.25 2A6.7 6.7 0 0012 3.509 6.75 6.75 0 001 8.75c0 4.497 2.784 7.818 5.207 9.87a23.498 23.498 0 004.839 3.143l.096.044.03.013.01.005.003.002.002.001c.273-.609.544-1.218.813-1.828 0 0-9-4-9-11.25a4.75 4.75 0 018.932-2.247A1 1 0 0011 7.5v.638c-.357.1-.689.26-.979.49A2.35 2.35 0 009.13 10.5c-.007.424.112.84.342 1.197.21.31.497.563.831.734.546.29 1.23.411 1.693.502.557.109.899.19 1.117.315.086.048.109.082.114.09.004.006.028.045.028.162 0 .024-.008.118-.165.235-.162.122-.5.27-1.09.27-.721 0-1.049-.21-1.181-.323a.6.6 0 01-.142-.168l.005.013.006.014.002.009a.996.996 0 00-1.884.64l.947-.316-.003.001c-.875.292-.939.314-.943.317l.001.003.003.006.004.015.012.032c.045.111.1.218.162.321.146.236.324.444.535.624.357.306.841.566 1.476.702v.605a1 1 0 002 0v-.614c1.29-.289 2.245-1.144 2.245-2.386 0-.44-.103-.852-.327-1.212-.22-.355-.52-.6-.82-.77-.555-.316-1.244-.445-1.719-.539-.567-.111-.915-.185-1.143-.305a.5.5 0 01-.1-.07l-.004-.003-.003-.009a.4.4 0 01-.009-.092c0-.158.053-.244.14-.314.109-.086.341-.19.74-.19.373-.001.73.144.997.404a.996.996 0 001.518-1.286l-.699.58.698-.582v-.001l-.002-.001-.002-.003-.006-.006-.016-.018a2.984 2.984 0 00-.178-.182A3.45 3.45 0 0013 8.154V7.5a1 1 0 00-.933-.997A4.75 4.75 0 0121 8.75C21 16 12 20 12 20l.813 1.827.002-.001.003-.001.01-.005.029-.013.097-.045c.081-.037.191-.09.33-.16a23.5 23.5 0 004.509-2.982C20.216 16.568 23 13.248 23 8.75A6.75 6.75 0 0016.25 2Zm-3.437 19.827L12 20l-.813 1.828.813.36.813-.361Z"]');
-
-	if (thanksButton) {
-		thanksButton.closest('button-view-model').style.display = 'none';
-	}
-}
-
-function moveAutoplay() {
-	let autoInterval = setInterval(addOldAutoplay, 10);
-	setTimeout(() => {
-		clearInterval(autoInterval);
-	}, 10000);
-}
-
-function addOldAutoplay() {
-	const reduxAutoplay = document.querySelector('#redux-autoplay');
-
-	if (getRelatedVideosType() != relatedVideosType) {
-		setRelatedVideosType();
-		if (reduxAutoplay) {
-			reduxAutoplay.remove();
-		}
-	}
-
-	if (window.location.href.includes('&list') || reduxAutoplay || !document.querySelector('[data-tooltip-target-id="ytp-autonav-toggle-button"]')) return;
-
-	const relatedContainer = document.querySelector('#secondary-inner.ytd-watch-flexy #related #items ytd-item-section-renderer #contents') || document.querySelector('#secondary-inner.ytd-watch-flexy #related #items');
-	const relatedContainerParent = relatedContainer.parentElement;
-	const originalAutoplay = document.querySelector('[data-tooltip-target-id="ytp-autonav-toggle-button"]');
-	const upNext = document.querySelector('.ytp-autonav-endscreen-upnext-header');
-	const autoplayElement = document.createElement('div');
-	autoplayElement.id = 'redux-autoplay';
-	autoplayElement.style = 'display: flex; justify-content: space-between; padding-right: 24px; padding-bottom: 2px;';
-	autoplayElement.innerHTML = `
-	<div class="redux-auto-left">
-		<span id="redux-autoplay-upnext"></span>
-	</div>
-	<div class="redux-auto-right">
-		<span id="redux-autoplay-label"></span>
-		<span class="redux-autoplay-checkbox-toggle">
-			<input id="redux-autoplay-checkbox" type="checkbox">
-			<label for="redux-autoplay-checkbox" id="redux-autoplay-checkbox-label">
-				<span class="checked"></span>
-				<span class="toggle"></span>
-				<span class="unchecked"></span>
-			</label>  
-		</span>
-	</div>
-	`;
-
-	// disabled due to YT no longer exposing next autoplayed item in the related column
-	// if (upNext) autoplayElement.querySelector('#redux-autoplay-upnext').innerText = upNext.innerText;	
-	autoplayElement.querySelector('#redux-autoplay-label').innerText = originalAutoplay.getAttribute('aria-label');
-
-	if (originalAutoplay.querySelector('div[aria-checked]').getAttribute('aria-checked') === 'true') {
-		autoplayElement.querySelector('#redux-autoplay-checkbox').checked = true;
-	}
-	
-	relatedContainerParent.insertBefore(autoplayElement, relatedContainer);
-	
-	autoplayElement.querySelector('span.redux-autoplay-checkbox-toggle').addEventListener('click', () => {
-		originalAutoplay.click();
-		setTimeout(() => {
-			document.querySelector('#redux-autoplay-label').innerText = originalAutoplay.getAttribute('aria-label');
-		}, 50);
+	pageCleanups.push(() => {
+		timers.forEach(clearTimeout);
+		observerPlaylistItems?.disconnect();
 	});
-}
-
-function removeMiniplayer() {
-	document.querySelector('.ytp-miniplayer-ui .ytp-miniplayer-close-button').click();
 }
 
 function expandSidebarSections() {
 	const expanders = document.querySelectorAll('#guide-renderer #expander-item');
 	for (let i = expanders.length - 1; i >= 0 ; i--) {
+		if (expandedSections.has(expanders[i])) continue;
+		expandedSections.add(expanders[i]);
 		expanders[i].click();
-	}
-}
-
-function formatNumber(number) {
-	let likesButton = document.querySelector('#above-the-fold #segmented-like-button button') || document.querySelector('#above-the-fold like-button-view-model button') ;
-	let likes = likesButton.getAttribute('aria-label')?.match(/(?=\d).*(?<=\d)/g) ? likesButton.getAttribute('aria-label').match(/(?=\d).*(?<=\d)/g)[0] : '';
-	let views = document.querySelector('#count.ytd-video-primary-info-renderer');
-	let separator = ' ';
-
-	if (views.innerText.includes('.') || likes.includes('.')) {
-		separator = '.';
-	} else if (views.innerText.includes(',') || likes.includes(',')) {
-		separator = ',';
-	}
-
-	return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, separator);
-}
-
-function updateDislikes() {
-	let buttonsContainer = document.querySelector('#top-level-buttons-computed');
-	let observerConfig = {
-		childList: true
-	};
-	let observerLikes = new MutationObserver(update);
-	observerLikes.observe(buttonsContainer, observerConfig); //not used anyway? needs investigation
-
-	update();
-
-	if (reduxSettings.showRawValues) {
-		let checkIfChanged = setInterval(() => {
-			let dislikesSource = document.querySelector('#top-level-buttons-computed .ryd-tooltip:last-of-type #tooltip') || document.querySelector('ytd-video-primary-info-renderer #top-level-buttons-computed #segmented-dislike-button span'); 
-			if (!dislikesSource) return;
-			
-			let dislikes = document.querySelector('#above-the-fold dislike-button-view-model button .ytSpecButtonShapeNextButtonTextContent');
-			let dislikesCount = dislikesSource.innerText.match(/(?<=\/).*/) ? dislikesSource.innerText.match(/(?<=\/).*/)[0].trim() : dislikesSource.innerText;
-			
-			if (dislikes) {
-				dislikes.innerText = formatNumber(dislikesCount.replace(/[,.\s]/g, ''));
-			}
-		}, 20);
-		setTimeout(() => {
-			if (checkIfChanged) {
-				clearInterval(checkIfChanged);
-			}
-		}, 5000);
-	}
-
-	function update() {
-		let likesButtonWithAria = document.querySelector('ytd-video-primary-info-renderer #top-level-buttons-computed #segmented-like-button button') || document.querySelector('ytd-video-primary-info-renderer #top-level-buttons-computed like-button-view-model button');
-		if (!likesButtonWithAria?.getAttribute('aria-label')) return; //gets likes value from aria label as it's the same with or without precise values
-		if (!parseInt(likesButtonWithAria.getAttribute('aria-label').replace(/[,.\s]/g, '').match(/\d+/))) return;
-
-		let likesCount = parseInt(likesButtonWithAria.getAttribute('aria-label').replace(/[,.\s]/g, '').match(/\d+/)[0]);
-		let dislikesSource = document.querySelector('.ryd-tooltip:last-of-type #tooltip');
-		let dislikesCount = '';
-
-		if (dislikesSource)
-		{
-			dislikesCount = dislikesSource.innerText.match(/(?<=\/).*/) ? dislikesSource.innerText.match(/(?<=\/).*/)[0].trim() : dislikesSource.innerText;
-			dislikesCount = dislikesCount.replace(/[,.\s]/g, '');
-		}
-
-		updateLikesBar(likesCount, dislikesCount);
-	}
-}
-
-function updateLikesBar(likesCount, dislikesCount) {
-	let likeBar = document.querySelector('#above-the-fold #like-bar.ytd-sentiment-bar-renderer');
-	let likes = parseInt(likesCount);
-	let dislikes = parseInt(parseFloat(dislikesCount.toString().replace(/\s+/g, '')).toFixed(0));
-	likeBar.style.width = (likes / (likes + dislikes)) * 100 + '%';
-}
-
-function hideShortsInSearch() {
-	const searchContents = document.querySelector('#contents.ytd-section-list-renderer');
-	const observer = new MutationObserver(hideRows);
-	const observerOptions = {
-		childList: true,
-		subtree: true
-	};
-	observer.observe(searchContents, observerOptions);
-	hideRows();
-
-	function hideRows() {
-		const shorts = document.querySelectorAll('#thumbnail[href*="/shorts/"]');
-		for (const short of shorts) {
-			const parentRow = short.closest('ytd-video-renderer');
-			if (parentRow) parentRow.style.display = 'none';
-		}
 	}
 }
 
@@ -864,162 +694,120 @@ function redirectShorts() {
 	window.location.replace(redirectLocation);
 }
 
-function adjustAmbient() {
+function adjustAmbient(cinematics) {
 	if (cinematicsObserver) return;
-	let cinematics = document.querySelector('#cinematics');
-	const initialProperty = document.querySelector('html').style.getPropertyValue('--redux-spec-general-background-a') || "#181818";
+	const root = document.documentElement;
+	const initialProperty = root.style.getPropertyValue('--redux-spec-general-background-a') || "#181818";
 
 	cinematicsObserver = new MutationObserver(() => {
-		cinematics = document.querySelector('#cinematics');
-
-		if (cinematics.hasChildNodes()) {
-			document.querySelector('html[dark]').style.setProperty('--redux-spec-general-background-a', 'transparent');
-		} else {
-			document.querySelector('html[dark]').style.setProperty('--redux-spec-general-background-a', initialProperty);
-		}
+		if (!root.hasAttribute('dark')) return;
+		const isAmbient = !!document.querySelector('#cinematics')?.hasChildNodes();
+		root.style.setProperty('--redux-spec-general-background-a', isAmbient ? 'transparent' : initialProperty);
 	});
 	cinematicsObserver.observe(cinematics, { childList: true });
 }
 
+/* ---------- per page setup ---------- */
 function main() {
+	const isVideo = pageLocation === PAGE_LOCATION.Video;
+
 	if (reduxSettings.autoConfirm) {
-		if (confirmInterval == undefined) {
-			confirmInterval = setInterval(confirmIt, 500);
-			setInterval(() => {
-				let keyboardEvent = document.createEvent('KeyboardEvent');
-				let initMethod = typeof keyboardEvent.initKeyboardEvent !== 'undefined' ? 'initKeyboardEvent' : 'initKeyEvent';
-
-				keyboardEvent[initMethod](
-					'keydown', // event type: keydown, keyup, keypress
-					true, // bubbles
-					true, // cancelable
-					window, // view: should be window
-					false, // ctrlKey
-					false, // altKey
-					false, // shiftKey
-					false, // metaKey
-					113, // keyCode: unsigned long - the virtual key code, else 0
-					0, // charCode: unsigned long - the Unicode character associated with the depressed key, else 0
-				);
-				document.dispatchEvent(keyboardEvent);
-			}, 60000*10);
+		startAutoConfirm();
+	}
+	if (reduxSettings.rearrangeInfo2 && isVideo) {
+		if (!flags.isRearranged) {
+			waitForElement('#above-the-fold #top-level-buttons-computed > *', rearrangeInfo);
 		}
+		waitForElement(INFO_TOOLTIP, tooltip => {
+			track('videoInfo', tooltip, TEXT_CHANGES, updateVideoInfo);
+			updateVideoInfo();
+		});
 	}
-
-	if (reduxSettings.rearrangeInfo2 && pageLocation === PAGE_LOCATION.Video && !flags.isRearranged) {
-		waitForElement('#above-the-fold #top-level-buttons-computed > *', 10, rearrangeInfo);
+	if (reduxSettings.smallPlayer && isVideo) {
+		waitForElement('ytd-watch-flexy #movie_player', watchPlayerSize);
 	}
-	if (reduxSettings.smallPlayer && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('ytd-watch-flexy #movie_player', 10, recalculateVideoSize);
-		waitForElement('#redux-recalc', 10, alignItems);
+	if (reduxSettings.disableInfiniteScrolling && isVideo) {
+		waitForElement('#contents > ytd-comment-thread-renderer, #contents > ytd-message-renderer', limitComments); // additional element in selector for videos with disabled comments
+		waitForElement(`${RELATED_ITEMS} ytd-continuation-item-renderer`, limitRelated);
 	}
-	if (reduxSettings.disableInfiniteScrolling && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#contents > ytd-comment-thread-renderer, #contents > ytd-message-renderer', 10, () => { startObservingScrolling(INFINITE_SCROLLING_MODE.Comments); }); // additional element in selector for videos with disabled comments
+	if ((reduxSettings.showRawValues || reduxSettings.compatibleDislikesRe) && isVideo) {
+		waitForElement('#above-the-fold #top-level-buttons-computed', trackLikeCounters);
 	}
-	if (reduxSettings.disableInfiniteScrolling && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#secondary > #secondary-inner > #related > ytd-watch-next-secondary-results-renderer > #items ytd-continuation-item-renderer', 10, () => { startObservingScrolling(INFINITE_SCROLLING_MODE.Related); });
-	}
-	if (reduxSettings.showRawValues && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#above-the-fold #segmented-like-button button[aria-label]:not([aria-label=""]), #above-the-fold like-button-view-model button[aria-label]:not([aria-label=""])', 10, changeLikesCounter);
-	}
-	if (reduxSettings.compatibleDislikesRe && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('.ryd-tooltip #tooltip', 10, updateDislikes, 20 * 1000);
-	}
-	if (pageLocation === PAGE_LOCATION.Trending || pageLocation === PAGE_LOCATION.Explore) {
-		waitForElement('#page-manager ytd-browse #primary > ytd-section-list-renderer > #continuations', 10, splitTrendingLoop);
-	}
-	if (reduxSettings.trueFullscreen && pageLocation === PAGE_LOCATION.Video && !flags.trueFullscreenListenersAdded) {
+	if (reduxSettings.trueFullscreen && isVideo && !flags.trueFullscreenListenersAdded) {
 		preventScrolling();
 	}
 	if (reduxSettings.playlistsFirst && pageLocation === PAGE_LOCATION.Home) {
-		waitForElement('#page-manager ytd-browse[page-subtype="home"] ytd-two-column-browse-results-renderer #content .ytLockupViewModelCollectionStack2', 10, sortPlaylists);
+		waitForElement('#page-manager ytd-browse[page-subtype="home"] ytd-two-column-browse-results-renderer #content .ytLockupViewModelCollectionStack2', sortPlaylists);
 	}
-	if (reduxSettings.trimSubs && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#reduxSubDiv > #owner-sub-count', 10, trimStrings);
+	if (reduxSettings.trimSubs && isVideo) {
+		waitForElement('#reduxSubDiv > #owner-sub-count', subCount => {
+			track('subs', subCount, TEXT_CHANGES, trimSubs);
+			trimSubs();
+		});
 	}
-	if (reduxSettings.trimViews && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('span.view-count', 10, trimViews);
+	if (reduxSettings.trimViews && isVideo) {
+		waitForElement('span.view-count', trimViews);
 	}
-	if (reduxSettings.altStrings && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#below #comments:not([hidden])', 10, alternativeStrings);
+	if ((reduxSettings.altStrings || reduxSettings.hideThanks) && isVideo) {
+		waitForElement('#above-the-fold ytd-menu-renderer #flexible-item-buttons', () => {
+			track('flexibleButtons', document.querySelector('#above-the-fold ytd-menu-renderer'), { childList: true, subtree: true }, updateFlexibleButtons);
+			updateFlexibleButtons();
+		});
 	}
-	if (reduxSettings.hideThanks && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#above-the-fold path[d="M16.25 2A6.7 6.7 0 0012 3.509 6.75 6.75 0 001 8.75c0 4.497 2.784 7.818 5.207 9.87a23.498 23.498 0 004.839 3.143l.096.044.03.013.01.005.003.002.002.001c.273-.609.544-1.218.813-1.828 0 0-9-4-9-11.25a4.75 4.75 0 018.932-2.247A1 1 0 0011 7.5v.638c-.357.1-.689.26-.979.49A2.35 2.35 0 009.13 10.5c-.007.424.112.84.342 1.197.21.31.497.563.831.734.546.29 1.23.411 1.693.502.557.109.899.19 1.117.315.086.048.109.082.114.09.004.006.028.045.028.162 0 .024-.008.118-.165.235-.162.122-.5.27-1.09.27-.721 0-1.049-.21-1.181-.323a.6.6 0 01-.142-.168l.005.013.006.014.002.009a.996.996 0 00-1.884.64l.947-.316-.003.001c-.875.292-.939.314-.943.317l.001.003.003.006.004.015.012.032c.045.111.1.218.162.321.146.236.324.444.535.624.357.306.841.566 1.476.702v.605a1 1 0 002 0v-.614c1.29-.289 2.245-1.144 2.245-2.386 0-.44-.103-.852-.327-1.212-.22-.355-.52-.6-.82-.77-.555-.316-1.244-.445-1.719-.539-.567-.111-.915-.185-1.143-.305a.5.5 0 01-.1-.07l-.004-.003-.003-.009a.4.4 0 01-.009-.092c0-.158.053-.244.14-.314.109-.086.341-.19.74-.19.373-.001.73.144.997.404a.996.996 0 001.518-1.286l-.699.58.698-.582v-.001l-.002-.001-.002-.003-.006-.006-.016-.018a2.984 2.984 0 00-.178-.182A3.45 3.45 0 0013 8.154V7.5a1 1 0 00-.933-.997A4.75 4.75 0 0121 8.75C21 16 12 20 12 20l.813 1.827.002-.001.003-.001.01-.005.029-.013.097-.045c.081-.037.191-.09.33-.16a23.5 23.5 0 004.509-2.982C20.216 16.568 23 13.248 23 8.75A6.75 6.75 0 0016.25 2Zm-3.437 19.827L12 20l-.813 1.828.813.36.813-.361Z"]', 100, hideThanks);
-	}
-	if (reduxSettings.moveAutoplay && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#secondary-inner #related #contents > yt-lockup-view-model', 10, moveAutoplay);
+	if (reduxSettings.moveAutoplay && isVideo) {
+		waitForElement('#secondary-inner #related #contents > yt-lockup-view-model', moveAutoplay);
 	}
 	if (reduxSettings.disableMiniplayer) {
-		waitForElement('.ytp-miniplayer-ui .ytp-miniplayer-close-button', 10, removeMiniplayer);
+		waitForElement('.ytp-miniplayer-ui .ytp-miniplayer-close-button', closeButton => closeButton.click());
 	}
 	if (reduxSettings.autoExpandSidebarSections) {
-		waitForElement('#section-items > ytd-guide-collapsible-entry-renderer #expander-item', 10, expandSidebarSections);
-	}
-	if (reduxSettings.hideShorts && pageLocation === PAGE_LOCATION.SearchResults) {
-		waitForElement('#contents.ytd-section-list-renderer', 10, hideShortsInSearch);
+		waitForElement('#section-items > ytd-guide-collapsible-entry-renderer #expander-item', expandSidebarSections);
 	}
 	if (reduxSettings.redirectShorts && pageLocation === PAGE_LOCATION.Shorts) {
 		redirectShorts();
 	}
-	if (!reduxSettings.ignoreAmbientAdjustment && getTheme() === THEME.Dark && pageLocation === PAGE_LOCATION.Video) {
-		waitForElement('#cinematics', 10, adjustAmbient);
+	if (!reduxSettings.ignoreAmbientAdjustment && getTheme() === THEME.Dark && isVideo) {
+		waitForElement('#cinematics', adjustAmbient);
 	}
 }
 
-(() => {
-	setPageLocation();
-
+function runMain() {
 	try {
 		main();
 	} catch (error) {
 		log(error, true);
 	}
+}
 
+function handleNavigation() {
+	if (location.pathname == YTReduxURLPath && location.search == YTReduxURLSearch) return;
 	YTReduxURLPath = location.pathname;
 	YTReduxURLSearch = location.search;
+	setPageLocation();
 
-	setInterval(function() {
-		if (location.pathname != YTReduxURLPath || location.search != YTReduxURLSearch) {
-			setPageLocation();
-			YTReduxURLPath = location.pathname;
-			YTReduxURLSearch = location.search;
-			flags.likesChanged = false;
+	clearWaiters();
+	pageCleanups.forEach(cleanup => cleanup());
+	pageCleanups = [];
+	contestedElements = new WeakMap();
 
-			if (reduxSettings.disableInfiniteScrolling) {
-				if (observerComments != undefined) {
-					observerComments.disconnect();
-				}
-				if (observerRelated != undefined) {
-					observerRelated.disconnect();
-				}
-				let comments = document.querySelectorAll('#contents > ytd-comment-thread-renderer');
-				comments.forEach(element => { //remove comments because YT sometimes keeps old ones after url change which messes with comments observer checking their length; also applied when sorting
-					element.remove();
-				});
-			}
+	if (reduxSettings.disableInfiniteScrolling) {
+		//remove comments because YT sometimes keeps old ones after url change which messes with comments observer checking their length; also applied when sorting
+		document.querySelectorAll('#contents > ytd-comment-thread-renderer').forEach(element => element.remove());
+	}
 
-			clearStoredIntervals();
+	runMain();
+}
 
-			if (!!document.querySelector('#redux-video-stats') 
-			&& pageLocation === PAGE_LOCATION.Video
-			&& document.querySelector('#redux-video-stats').getAttribute('redux-url-check') != window.location.search) {
-				addMissingVideoPageElements();
-			}
+settingsReady.then(() => {
+	setLanguage(reduxSettings.language, document.documentElement.lang);
+	setPageLocation();
+	YTReduxURLPath = location.pathname;
+	YTReduxURLSearch = location.search;
+	runMain();
 
-			if (reduxSettings.compatibleDislikesRe) {
-				const leftoverRYDTooltips = document.querySelectorAll('.ryd-tooltip');
-				if (leftoverRYDTooltips.length > 0) {
-					leftoverRYDTooltips.forEach(element => {
-						element.remove();
-					});
-				}
-			}
-
-			try {
-				main();
-			} catch (error) {
-				log(error, true);
-			}
-		}
-	}, 100);
-})();
+	//YouTube is a single page app; these fire once it has swapped the page's content
+	document.addEventListener('yt-navigate-finish', handleNavigation);
+	document.addEventListener('yt-page-data-updated', handleNavigation);
+	//cheap safety net in case a navigation doesn't announce itself
+	setInterval(handleNavigation, 1000);
+}).catch(error => log(error, true));

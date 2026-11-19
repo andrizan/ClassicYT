@@ -7,10 +7,8 @@ const PAGE_LOCATION = {
 	"Home": 0,
 	"Video": 1,
 	"Channel": 2,
-	"Trending": 3,
-	"Explore": 4,
-	"SearchResults": 5,
-	"Shorts": 6
+	"SearchResults": 3,
+	"Shorts": 4
 };
 
 const RELATED_VIDEOS_TYPE = {

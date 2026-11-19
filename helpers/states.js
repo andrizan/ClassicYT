@@ -10,10 +10,6 @@ const getPageLocation = () => {
 		return PAGE_LOCATION.Video;
 	} else if (location.pathname.startsWith('/user/') || location.pathname.startsWith('/c/') || location.pathname.startsWith('/@')) {
 		return PAGE_LOCATION.Channel;
-	} else if (location.href.includes('/feed/trending')) {
-		return PAGE_LOCATION.Trending;
-	} else if (location.href.includes('/feed/explore')) {
-		return PAGE_LOCATION.Explore;
 	} else if (location.href.includes('/results?')) {
 		return PAGE_LOCATION.SearchResults;
 	} else if (location.href.includes('/shorts/')) {
@@ -30,7 +26,6 @@ let relatedVideosType = RELATED_VIDEOS_TYPE.Normal;
 
 const getRelatedVideosType = () => {
 	const relatedVideos = document.querySelector('#secondary-inner.ytd-watch-flexy #related #items ytd-item-section-renderer #contents > yt-lockup-view-model');
-	const relatedVideosAlt = document.querySelector('#secondary-inner.ytd-watch-flexy #related #items > yt-lockup-view-model');
 
 	if (relatedVideos) {
 		return RELATED_VIDEOS_TYPE.Normal;
