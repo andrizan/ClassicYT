@@ -268,7 +268,7 @@ ytd-button-renderer.ytd-feed-filter-chip-bar-renderer,
 .shortsLockupViewModelHostThumbnailParentContainerRounded,
 .ytBadgeShapeThumbnailBadge,
 .ytTooltipContainerDefaultTooltipContent,
-ytd-video-preview[rounded-corners-large] #media-container.ytd-video-preview,
+.ytdVideoPreviewMediaContainer,
 .ytp-delhi-modern .ytp-tooltip:not(.ytp-frosted-glass-fade-transition) .ytp-tooltip-bottom-text,
 .ytp-delhi-modern .ytp-tooltip:not(.ytp-preview) .ytp-tooltip-bottom-text,
 ytd-carousel-item-renderer,
@@ -435,7 +435,6 @@ ytd-mini-guide-renderer.ytd-app {
 /*VIDEO STYLES*/
 ytd-video-preview {
     padding: 0 !important;
-    margin: 12px;
 }
 #above-the-fold #title yt-formatted-string {
     font-size: 20px;
