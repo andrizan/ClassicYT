@@ -2497,7 +2497,8 @@ function addCustomStyles() {
 		ytd-two-column-search-results-renderer grid-shelf-view-model,
 		#related ytd-reel-shelf-renderer,
 		[slot="extra-content"] ytd-reel-shelf-renderer,
-		ytd-search ytd-video-renderer:has(#thumbnail[href*="/shorts/"]) {
+		ytd-search ytd-video-renderer:has(#thumbnail[href*="/shorts/"]),
+		ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]) {
 			display: none !important;
 		}
 		`,
@@ -2568,6 +2569,39 @@ function addCustomStyles() {
 		`,
 		hideExtraSearchCategories: () => `
 		ytd-two-column-search-results-renderer ytd-shelf-renderer {
+			display: none !important;
+		}
+		`,
+		hideInfoCards: () => `
+		#movie_player .ytp-cards-button,
+		#movie_player .ytp-cards-teaser {
+			display: none !important;
+		}
+		`,
+		hideWatermark: () => `
+		#movie_player .iv-branding {
+			display: none !important;
+		}
+		`,
+		hideLiveChat: () => `
+		ytd-live-chat-frame {
+			display: none !important;
+		}
+		`,
+		hideMerch: () => `
+		ytd-merch-shelf-renderer,
+		#movie_player .ytp-featured-product {
+			display: none !important;
+		}
+		`,
+		/* YouTube's own offers (Premium, channel memberships), not ads from other advertisers */
+		hidePromos: () => `
+		ytd-rich-section-renderer:has(ytd-statement-banner-renderer),
+		ytd-rich-section-renderer:has(ytd-brand-video-shelf-renderer),
+		ytd-statement-banner-renderer,
+		ytd-brand-video-shelf-renderer,
+		ytd-mealbar-promo-renderer,
+		ytd-banner-promo-renderer {
 			display: none !important;
 		}
 		`

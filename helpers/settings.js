@@ -78,7 +78,14 @@ const defaultSettings = {
 	"hideTicketShelf": true,
 	"hideAISummary": true,
 	"hideEndScreen": false,
-	"hideExtraSearchCategories": true
+	"hideExtraSearchCategories": true,
+	"hideShareButton": false,
+	"hideClipButton": false,
+	"hideInfoCards": false,
+	"hideWatermark": false,
+	"hideLiveChat": false,
+	"hideMerch": false,
+	"hidePromos": false
 };
 
 /* Returns the stored settings completed with any defaults that are missing (e.g. after an update). */

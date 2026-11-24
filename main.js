@@ -20,7 +20,9 @@ const SHOW_MORE_STYLE = 'font-family: Roboto, Arial, sans-serif; padding-top: 9p
 //icon names YouTube uses in its own data for the buttons below the player; they don't depend on the UI language
 const FLEXIBLE_ICONS = {
 	"thanks": ['MONEY_HEART', 'MONEY_HAND'],
-	"save": ['PLAYLIST_ADD', 'BOOKMARK_BORDER']
+	"save": ['PLAYLIST_ADD', 'BOOKMARK_BORDER'],
+	"share": ['SHARE'],
+	"clip": ['CONTENT_CUT', 'CONTENT_CUT_CAIRO']
 };
 
 let YTReduxURLPath;
@@ -29,7 +31,7 @@ let confirmInterval;
 let pageCleanups = []; //undone on every navigation
 const trackedElements = new Map();
 const expandedSections = new WeakSet();
-let hiddenThanksButton = null;
+const hiddenButtons = {}; //buttons below the player hidden by ClassicYT, by FLEXIBLE_ICONS key
 
 function createElement(tag, properties, children) {
 	const element = Object.assign(document.createElement(tag), properties);
@@ -496,16 +498,22 @@ function trimViews() {
 	track('views', views, TEXT_CHANGES, trimViews);
 }
 
-/* Finds one of the buttons below the player (Save, Thanks, ...) through YouTube's own data. */
+/* Finds one of the buttons below the player (Save, Thanks, ...) through YouTube's own data.
+   YouTube places some of them (e.g. Share) either among the flexible or the top-level buttons. */
 function findFlexibleButton(iconNames) {
 	try {
 		const menu = document.querySelector('#above-the-fold ytd-menu-renderer');
-		const items = menu?.wrappedJSObject?.data?.flexibleItems;
-		const buttons = menu?.querySelector('#flexible-item-buttons')?.children;
-		if (!items || !buttons) return null;
-		for (let i = 0; i < items.length; i++) {
-			const iconName = items[i]?.menuFlexibleItemRenderer?.topLevelButton?.buttonViewModel?.iconName;
-			if (iconNames.includes(iconName)) return buttons[i] || null;
+		const data = menu?.wrappedJSObject?.data;
+		const lists = [
+			[data?.flexibleItems, '#flexible-item-buttons', item => item?.menuFlexibleItemRenderer?.topLevelButton?.buttonViewModel?.iconName],
+			[data?.topLevelButtons, '#top-level-buttons-computed', item => item?.buttonViewModel?.iconName]
+		];
+		for (const [items, container, iconOf] of lists) {
+			const buttons = menu?.querySelector(container)?.children;
+			if (!items || !buttons) continue;
+			for (let i = 0; i < items.length; i++) {
+				if (iconNames.includes(iconOf(items[i]))) return buttons[i] || null;
+			}
 		}
 	} catch (error) {
 		log(error, true);
@@ -513,16 +521,25 @@ function findFlexibleButton(iconNames) {
 	return null;
 }
 
+/* Keeps the redux-hidden mark on the button currently found for key; YouTube re-renders these buttons. */
+function hideButton(key, button) {
+	if (button === hiddenButtons[key]) return;
+	hiddenButtons[key]?.removeAttribute('redux-hidden');
+	button?.setAttribute('redux-hidden', '');
+	hiddenButtons[key] = button;
+}
+
 function updateFlexibleButtons() {
 	if (reduxSettings.hideThanks) {
-		const thanksButton = findFlexibleButton(FLEXIBLE_ICONS.thanks)
+		hideButton('thanks', findFlexibleButton(FLEXIBLE_ICONS.thanks)
 			|| document.querySelector('#above-the-fold path[d^="M16.25 2A6.7 6.7 0 0012 3.509"]')?.closest('#flexible-item-buttons > *')
-			|| null;
-		if (thanksButton !== hiddenThanksButton) {
-			hiddenThanksButton?.removeAttribute('redux-hidden');
-			thanksButton?.setAttribute('redux-hidden', '');
-			hiddenThanksButton = thanksButton;
-		}
+			|| null);
+	}
+	if (reduxSettings.hideShareButton) {
+		hideButton('share', findFlexibleButton(FLEXIBLE_ICONS.share));
+	}
+	if (reduxSettings.hideClipButton) {
+		hideButton('clip', findFlexibleButton(FLEXIBLE_ICONS.clip));
 	}
 	if (reduxSettings.altStrings) {
 		setContestedText(findFlexibleButton(FLEXIBLE_ICONS.save)?.querySelector(BUTTON_TEXT), t('addTo'));
@@ -751,7 +768,7 @@ function main() {
 	if (reduxSettings.trimViews && isVideo) {
 		waitForElement('span.view-count', trimViews);
 	}
-	if ((reduxSettings.altStrings || reduxSettings.hideThanks) && isVideo) {
+	if ((reduxSettings.altStrings || reduxSettings.hideThanks || reduxSettings.hideShareButton || reduxSettings.hideClipButton) && isVideo) {
 		waitForElement('#above-the-fold ytd-menu-renderer #flexible-item-buttons', () => {
 			track('flexibleButtons', document.querySelector('#above-the-fold ytd-menu-renderer'), { childList: true, subtree: true }, updateFlexibleButtons);
 			updateFlexibleButtons();

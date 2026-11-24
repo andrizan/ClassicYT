@@ -88,7 +88,7 @@ Object.assign(reduxMessages.en, {
 
 	secVisibility: 'Features visibility',
 	visibilityTip: 'If not enabled:'
-		+ '\n• Shorts - removes the button from homepage and hides shorts in search results'
+		+ '\n• Shorts - removes the button from homepage, the Shorts shelves on the home and subscriptions pages and shorts in search results'
 		+ '\n• Related videos age - removes this info (time since upload date) from related videos'
 		+ '\n• Auto-play - removes the button from video player controls'
 		+ '\n• Play on TV - removes the button from video player controls; AKA the Cast button which allows you to cast video to the paired TV'
@@ -112,7 +112,14 @@ Object.assign(reduxMessages.en, {
 		+ '\n• Ticket shelf - removes ticket shelf section from video page'
 		+ '\n• AI summary - removes AI summary section from video page'
 		+ "\n• End Screen - removes end screen cards (thumbnails linking to other creator's videos) from the end of a video"
-		+ '\n• Extra search categories - removes categories like "Channels new to you", "Previously watched", "From related searches" from search results',
+		+ '\n• Extra search categories - removes categories like "Channels new to you", "Previously watched", "From related searches" from search results'
+		+ '\n• Share - removes the Share button below the video player'
+		+ '\n• Clip - removes the Clip button below the video player'
+		+ '\n• YouTube promotions - removes YouTube\'s own offers such as YouTube Premium and channel memberships from the homepage'
+		+ '\n• Merch and products - removes the merch shelf below the video and product overlays in the player'
+		+ '\n• Live chat - removes the live chat and chat replay next to live streams'
+		+ '\n• Info cards - removes the info cards button (i) and its teasers from the video player'
+		+ '\n• Channel watermark - removes the channel watermark from the corner of the video player',
 	visShorts: 'Shorts',
 	visRelatedAge: 'Related videos age',
 	visAutoplay: 'Auto-play',
@@ -137,6 +144,13 @@ Object.assign(reduxMessages.en, {
 	visAISummary: 'AI summary',
 	visEndScreen: 'End Screen',
 	visExtraSearch: 'Extra search categories',
+	visShare: 'Share',
+	visClip: 'Clip',
+	visPromos: 'YouTube promotions',
+	visMerch: 'Merch and products',
+	visLiveChat: 'Live chat',
+	visInfoCards: 'Info cards',
+	visWatermark: 'Channel watermark',
 
 	tabVisibility: 'Visibility',
 	visibilityIntro: 'Switch a feature off to hide it on YouTube.',
@@ -277,7 +291,7 @@ Object.assign(reduxMessages.id, {
 
 	secVisibility: 'Visibilitas fitur',
 	visibilityTip: 'Jika tidak diaktifkan:'
-		+ '\n• Shorts - menghapus tombolnya dari beranda dan menyembunyikan Shorts di hasil penelusuran'
+		+ '\n• Shorts - menghapus tombolnya dari beranda, rak Shorts di halaman beranda dan subscription, serta menyembunyikan Shorts di hasil penelusuran'
 		+ '\n• Usia video terkait - menghapus info ini (waktu sejak tanggal unggah) dari video terkait'
 		+ '\n• Putar otomatis - menghapus tombolnya dari kontrol pemutar video'
 		+ '\n• Putar di TV - menghapus tombolnya dari kontrol pemutar video; alias tombol Cast untuk mentransmisikan video ke TV yang tersambung'
@@ -301,7 +315,14 @@ Object.assign(reduxMessages.id, {
 		+ '\n• Rak tiket - menghapus bagian rak tiket dari halaman video'
 		+ '\n• Ringkasan AI - menghapus bagian ringkasan AI dari halaman video'
 		+ '\n• Layar akhir - menghapus kartu layar akhir (thumbnail yang menautkan ke video kreator lain) di akhir video'
-		+ '\n• Kategori penelusuran tambahan - menghapus kategori seperti "Channel baru untuk Anda", "Sudah ditonton", "Dari penelusuran terkait" dari hasil penelusuran',
+		+ '\n• Kategori penelusuran tambahan - menghapus kategori seperti "Channel baru untuk Anda", "Sudah ditonton", "Dari penelusuran terkait" dari hasil penelusuran'
+		+ '\n• Bagikan - menghapus tombol Bagikan di bawah pemutar video'
+		+ '\n• Klip - menghapus tombol Klip di bawah pemutar video'
+		+ '\n• Promosi YouTube - menghapus penawaran milik YouTube sendiri seperti YouTube Premium dan keanggotaan channel dari beranda'
+		+ '\n• Merchandise dan produk - menghapus rak merchandise di bawah video dan overlay produk di pemutar'
+		+ '\n• Live chat - menghapus live chat dan tayangan ulang chat di samping siaran langsung'
+		+ '\n• Kartu info - menghapus tombol kartu info (i) beserta teaser-nya dari pemutar video'
+		+ '\n• Watermark channel - menghapus watermark channel di pojok pemutar video',
 	visShorts: 'Shorts',
 	visRelatedAge: 'Usia video terkait',
 	visAutoplay: 'Putar otomatis',
@@ -326,6 +347,13 @@ Object.assign(reduxMessages.id, {
 	visAISummary: 'Ringkasan AI',
 	visEndScreen: 'Layar akhir',
 	visExtraSearch: 'Kategori penelusuran tambahan',
+	visShare: 'Bagikan',
+	visClip: 'Klip',
+	visPromos: 'Promosi YouTube',
+	visMerch: 'Merchandise dan produk',
+	visLiveChat: 'Live chat',
+	visInfoCards: 'Kartu info',
+	visWatermark: 'Watermark channel',
 
 	tabVisibility: 'Visibilitas',
 	visibilityIntro: 'Matikan fitur untuk menyembunyikannya di YouTube.',
