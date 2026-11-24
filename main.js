@@ -13,6 +13,9 @@ const INFO_TOOLTIP = '#description tp-yt-paper-tooltip:not([disable-upgrade]) > 
 const LIKE_BUTTON = '#above-the-fold #segmented-like-button button, #above-the-fold like-button-view-model button';
 const BUTTON_TEXT = '.ytSpecButtonShapeNextButtonTextContent';
 const RELATED_ITEMS = '#secondary > #secondary-inner > #related > ytd-watch-next-secondary-results-renderer > #items';
+//comment threads of the video page only: YouTube keeps other comment lists in the page (e.g. the Shorts comments panel)
+//and reuses their elements for the next video, so removing those leaves them showing the wrong comments
+const WATCH_COMMENT_THREADS = 'ytd-watch-flexy ytd-comments#comments ytd-item-section-renderer > #contents > ytd-comment-thread-renderer';
 const SHOW_MORE_STYLE = 'font-family: Roboto, Arial, sans-serif; padding-top: 9px; width: 100%; border-top: 1px solid #e2e2e2; border-bottom: none; border-left: none; border-right: none; background:none; font-size: 1.1rem; outline: none; cursor:pointer; text-transform: uppercase; font-weight: 500; color: var(--redux-spec-text-secondary); letter-spacing: 0.007px;';
 //icon names YouTube uses in its own data for the buttons below the player; they don't depend on the UI language
 const FLEXIBLE_ICONS = {
@@ -262,7 +265,7 @@ function limitComments() {
 	const observe = () => observerComments.observe(contentsElement, { childList: true });
 
 	function disableInfiniteComments() {
-		const comments = document.querySelectorAll('#contents > ytd-comment-thread-renderer');
+		const comments = document.querySelectorAll(WATCH_COMMENT_THREADS);
 		const commentsContElement = document.querySelector('ytd-comments#comments ytd-item-section-renderer > #contents > ytd-comment-thread-renderer + ytd-continuation-item-renderer');
 		if (comments.length < maxComments || commentsContElement == null) return;
 		observerComments.disconnect();
@@ -277,7 +280,7 @@ function limitComments() {
 	}
 
 	function resetCommentsObserver() {
-		document.querySelectorAll('#contents > ytd-comment-thread-renderer').forEach(element => element.remove());
+		document.querySelectorAll(WATCH_COMMENT_THREADS).forEach(element => element.remove());
 		document.querySelector('#show-more-comments')?.remove();
 		maxComments = commentsInterval;
 		observe();
@@ -791,8 +794,8 @@ function handleNavigation() {
 	contestedElements = new WeakMap();
 
 	if (reduxSettings.disableInfiniteScrolling) {
-		//remove comments because YT sometimes keeps old ones after url change which messes with comments observer checking their length; also applied when sorting
-		document.querySelectorAll('#contents > ytd-comment-thread-renderer').forEach(element => element.remove());
+		//remove the video page's comments because YT sometimes keeps old ones after url change which messes with comments observer checking their length; also applied when sorting
+		document.querySelectorAll(WATCH_COMMENT_THREADS).forEach(element => element.remove());
 	}
 
 	runMain();
