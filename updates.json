@@ -4,7 +4,7 @@
       "updates": [
         {
           "version": "3.13.0",
-          "update_link": "https://github.com/andrizan/YouTubeRedux/releases/download/v3.13.0/classicyt-3.13.0.xpi",
+          "update_link": "https://github.com/andrizan/ClassicYT/releases/download/v3.13.0/classicyt-3.13.0.xpi",
           "update_hash": "sha256:06457135e20e76979fc647195a4bee69a3ffc0c2c7ecfbe375dd91aefe7a0df8",
           "applications": {
             "gecko": {
@@ -14,7 +14,7 @@
         },
         {
           "version": "3.13.1",
-          "update_link": "https://github.com/andrizan/YouTubeRedux/releases/download/v3.13.1/classicyt-3.13.1.xpi",
+          "update_link": "https://github.com/andrizan/ClassicYT/releases/download/v3.13.1/classicyt-3.13.1.xpi",
           "update_hash": "sha256:a0a4eaceb62e4ed20b1049773b8b65f9bd855fd645c4aa23c3d31862bfa313f7",
           "applications": {
             "gecko": {
@@ -24,7 +24,7 @@
         },
         {
           "version": "3.13.2",
-          "update_link": "https://github.com/andrizan/YouTubeRedux/releases/download/v3.13.2/classicyt-3.13.2.xpi",
+          "update_link": "https://github.com/andrizan/ClassicYT/releases/download/v3.13.2/classicyt-3.13.2.xpi",
           "update_hash": "sha256:a911282f9baf06e8fcc04b7cf179fc6e5c0db5e22d8d019d345d2c43f8b915d6",
           "applications": {
             "gecko": {
@@ -34,7 +34,7 @@
         },
         {
           "version": "3.15.0",
-          "update_link": "https://github.com/andrizan/YouTubeRedux/releases/download/v3.15.0/classicyt-3.15.0.xpi",
+          "update_link": "https://github.com/andrizan/ClassicYT/releases/download/v3.15.0/classicyt-3.15.0.xpi",
           "update_hash": "sha256:cf25c31649726c8ab277fb747b78c724de6b83a99f91b3568f00f55775bc31d0",
           "applications": {
             "gecko": {
@@ -44,7 +44,7 @@
         },
         {
           "version": "3.14.2",
-          "update_link": "https://github.com/andrizan/YouTubeRedux/releases/download/v3.14.2/classicyt-3.14.2.xpi",
+          "update_link": "https://github.com/andrizan/ClassicYT/releases/download/v3.14.2/classicyt-3.14.2.xpi",
           "update_hash": "sha256:3abd6101e53945fae408e75fb77a2025ace447f8e0c6a1fc42976ad17371e626",
           "applications": {
             "gecko": {

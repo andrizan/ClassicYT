@@ -10,10 +10,10 @@
     "en-US": "Bring back the classic YouTube look: the old video page layout, logos, icons and likes bar, plus options to hide Shorts and other clutter."
   },
   "description": {
-    "en-US": "ClassicYT brings the look and feel of the classic YouTube layout back to the modern YouTube site.\n\nWhat it can do:\n• smaller video player and the old video page layout, with views, likes bar and channel info arranged like before\n• classic logos (2005 to 2017), favicons and the old filled icons\n• old likes/dislikes icons, green/red likes bar and precise like counts (works together with Return YouTube Dislike)\n• limit comments and related videos to 20 with a \"Show more\" button instead of infinite scrolling\n• the autoplay toggle back in the related videos column\n• hide Shorts, end screens, the AI summary, surveys, hashtags, chapters and many other elements\n• choose how many video thumbnails are shown per row\n• export and import your settings\n• settings in English and Bahasa Indonesia\n\nMost settings take effect after reloading the page.\n\nClassicYT is a fork of YouTube Redux by omnidevZero (MIT license), maintained for current versions of YouTube and Firefox. It does not collect or send any data.\n\nSource code: https://github.com/andrizan/YouTubeRedux"
+    "en-US": "ClassicYT brings the look and feel of the classic YouTube layout back to the modern YouTube site.\n\nWhat it can do:\n• smaller video player and the old video page layout, with views, likes bar and channel info arranged like before\n• classic logos (2005 to 2017), favicons and the old filled icons\n• old likes/dislikes icons, green/red likes bar and precise like counts (works together with Return YouTube Dislike)\n• limit comments and related videos to 20 with a \"Show more\" button instead of infinite scrolling\n• the autoplay toggle back in the related videos column\n• hide Shorts, end screens, the AI summary, surveys, hashtags, chapters and many other elements\n• choose how many video thumbnails are shown per row\n• export and import your settings\n• settings in English and Bahasa Indonesia\n\nMost settings take effect after reloading the page.\n\nClassicYT is a fork of YouTube Redux by omnidevZero (MIT license), maintained for current versions of YouTube and Firefox. It does not collect or send any data.\n\nSource code: https://github.com/andrizan/ClassicYT"
   },
   "homepage": {
-    "en-US": "https://github.com/andrizan/YouTubeRedux"
+    "en-US": "https://github.com/andrizan/ClassicYT"
   },
   "is_experimental": false,
   "requires_payment": false
