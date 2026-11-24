@@ -13,8 +13,9 @@ function addShowMore() {
 	const updatesToDisplay = 3;
 	let counter = 0;
 	let changesContainer = document.querySelector('#changes ul');
-	let showMoreButton = document.createElement('div');
-	showMoreButton.classList.add('show-more');
+	let showMoreButton = document.createElement('button');
+	showMoreButton.type = 'button';
+	showMoreButton.classList.add('show-more', 'btn');
 	showMoreButton.dataset.i18n = 'showMoreDots';
 	showMoreButton.addEventListener('click', function () {
 		for (let i = 0; i < changesContainer.children.length; i++) {

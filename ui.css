@@ -1,0 +1,541 @@
+/* Shared styles of the extension pages (popup, config, changelog). They follow the browser's light/dark theme. */
+:root {
+	color-scheme: light dark;
+
+	--bg: light-dark(#f3f3f5, #121214);
+	--surface: light-dark(#ffffff, #1d1d20);
+	--surface-hover: light-dark(#f5f5f7, #26262a);
+	--border: light-dark(#e3e3e8, #303035);
+	--text: light-dark(#18181b, #ececef);
+	--text-muted: light-dark(#5c5c66, #a3a3ad);
+	--accent: light-dark(#c4161c, #ff6a63);
+	--on-accent: light-dark(#ffffff, #2a0504);
+	--accent-soft: light-dark(#fdeeee, #3a1d1d);
+	--warning: light-dark(#a14b00, #f5b94a);
+	--focus: light-dark(#1a66d9, #8ab4f8);
+	--track: light-dark(#c4c4cc, #4a4a52);
+	--shadow: 0 1px 2px light-dark(rgb(0 0 0 / .06), rgb(0 0 0 / .4));
+	--shadow-lg: 0 12px 32px light-dark(rgb(0 0 0 / .16), rgb(0 0 0 / .55));
+	--radius: 12px;
+	--radius-sm: 8px;
+
+	accent-color: var(--accent);
+	scrollbar-color: light-dark(#b8b8c0, #55555d) transparent;
+	font: 13px/1.45 system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+*, *::before, *::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+}
+
+h1, h2, h3, p {
+	margin: 0;
+}
+
+a {
+	color: var(--accent);
+	text-underline-offset: 2px;
+}
+
+button, input, select, textarea {
+	font: inherit;
+	color: inherit;
+}
+
+:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
+}
+
+[hidden]:not([hidden="until-found"]) {
+	display: none !important;
+}
+
+.visually-hidden {
+	position: absolute !important;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.icon {
+	inline-size: 20px;
+	block-size: 20px;
+	fill: currentColor;
+	flex: none;
+}
+
+/* app bar */
+.app-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 14px;
+	background: var(--surface);
+	border-block-end: 1px solid var(--border);
+}
+
+.app-logo {
+	inline-size: 28px;
+	block-size: 28px;
+	flex: none;
+}
+
+.app-title {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	min-inline-size: 0;
+	margin-inline-end: auto;
+}
+
+.app-name {
+	font-size: 16px;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+	white-space: nowrap;
+}
+
+.badge {
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var(--surface-hover);
+	border: 1px solid var(--border);
+	color: var(--text-muted);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.app-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+/* buttons */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-block-size: 32px;
+	padding: 0 14px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	font-weight: 550;
+	text-decoration: none;
+	color: var(--text);
+	cursor: pointer;
+	transition: background-color .15s, border-color .15s;
+}
+
+.btn:hover {
+	background: var(--surface-hover);
+}
+
+.btn-primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--on-accent);
+}
+
+.btn-primary:hover {
+	background: color-mix(in srgb, var(--accent) 88%, var(--text));
+}
+
+.btn:disabled {
+	opacity: .5;
+	cursor: not-allowed;
+}
+
+.icon-btn {
+	display: inline-grid;
+	place-items: center;
+	inline-size: 32px;
+	block-size: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background-color .15s, color .15s;
+}
+
+.icon-btn:hover {
+	background: var(--surface-hover);
+	color: var(--text);
+}
+
+.link-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var(--text-muted);
+	text-decoration: none;
+	font-weight: 550;
+}
+
+.link-btn:hover {
+	color: var(--accent);
+}
+
+.link-btn .icon {
+	inline-size: 15px;
+	block-size: 15px;
+	fill: var(--accent);
+}
+
+/* form controls */
+.select {
+	min-block-size: 30px;
+	padding: 0 8px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	cursor: pointer;
+}
+
+.select:hover {
+	border-color: var(--track);
+}
+
+.select:disabled {
+	opacity: .5;
+	cursor: not-allowed;
+}
+
+.text-input,
+.textarea {
+	inline-size: 100%;
+	min-block-size: 32px;
+	padding: 6px 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg);
+}
+
+.textarea {
+	display: block;
+	resize: vertical;
+	font: 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.text-input:focus-visible,
+.textarea:focus-visible {
+	outline-offset: 0;
+	border-color: var(--focus);
+}
+
+/* Firefox has no native <input switch>, so switches are checkboxes with role="switch" drawn here.
+   The thumb is a background image because Firefox doesn't render pseudo-elements on inputs. */
+.switch {
+	appearance: none;
+	flex: none;
+	inline-size: 34px;
+	block-size: 20px;
+	margin: 0;
+	border-radius: 999px;
+	background: radial-gradient(circle closest-side, #fff 88%, transparent 100%) no-repeat 2px center / 16px 16px var(--track);
+	cursor: pointer;
+	transition: background-position .15s ease, background-color .15s ease;
+}
+
+.switch:checked {
+	background-color: var(--accent);
+	background-position: calc(100% - 2px) center;
+}
+
+.switch:disabled {
+	opacity: .45;
+	cursor: not-allowed;
+}
+
+@media (forced-colors: active) {
+	.switch {
+		border: 1px solid CanvasText;
+		background-image: radial-gradient(circle closest-side, CanvasText 88%, transparent 100%);
+	}
+
+	.switch:checked {
+		background-color: Highlight;
+	}
+}
+
+/* settings list */
+.group {
+	display: grid;
+	gap: 6px;
+}
+
+.group + .group {
+	margin-block-start: 16px;
+}
+
+.group-title {
+	padding-inline: 4px;
+	color: var(--text-muted);
+	font-size: 11px;
+	font-weight: 650;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.group-desc {
+	padding-inline: 4px;
+	color: var(--text-muted);
+	font-size: 12px;
+	white-space: pre-line;
+}
+
+.card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	overflow: hidden;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-block-size: 44px;
+	padding: 9px 12px;
+	cursor: pointer;
+}
+
+.row:not(:first-child),
+.subsettings-container > .row:first-child {
+	border-block-start: 1px solid var(--border);
+}
+
+label.row:hover {
+	background: var(--surface-hover);
+}
+
+.row:has(> .switch:disabled) {
+	cursor: default;
+	background: none;
+}
+
+.row:has(> .switch:disabled) .row-text {
+	opacity: .5;
+}
+
+.row-text {
+	display: grid;
+	gap: 2px;
+	flex: 1;
+	min-inline-size: 0;
+}
+
+.row-title {
+	font-weight: 500;
+}
+
+.row-desc {
+	color: var(--text-muted);
+	font-size: 12px;
+	white-space: pre-line;
+}
+
+.row-warning {
+	color: var(--warning);
+}
+
+.row.compact {
+	min-block-size: 38px;
+	padding-block: 7px;
+}
+
+.subsetting {
+	padding-inline-start: 30px;
+}
+
+.row-static {
+	cursor: default;
+}
+
+/* tabs */
+.tabs {
+	display: flex;
+	padding-inline: 8px;
+	overflow-x: auto;
+	scrollbar-width: none;
+	background: var(--surface);
+	border-block-end: 1px solid var(--border);
+}
+
+.tabs [role="tab"] {
+	position: relative;
+	flex: 1 0 auto;
+	padding: 10px 10px 11px;
+	border: 0;
+	background: none;
+	color: var(--text-muted);
+	font-weight: 550;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: color .15s;
+}
+
+.tabs [role="tab"]:hover {
+	color: var(--text);
+}
+
+.tabs [role="tab"]:focus-visible {
+	outline-offset: -3px;
+	border-radius: var(--radius-sm);
+}
+
+.tabs [aria-selected="true"] {
+	color: var(--accent);
+}
+
+.tabs [aria-selected="true"]::after {
+	content: "";
+	position: absolute;
+	inset: auto 10px 0;
+	border-block-end: 3px solid var(--accent);
+	border-radius: 3px 3px 0 0;
+}
+
+/* dialog */
+dialog {
+	inline-size: min(340px, calc(100vw - 32px));
+	padding: 20px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-lg);
+}
+
+dialog:modal {
+	overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+	background: rgb(0 0 0 / .45);
+	overflow: hidden;
+	overscroll-behavior: contain;
+}
+
+dialog h1 {
+	font-size: 16px;
+	font-weight: 650;
+}
+
+dialog p {
+	margin-block: 8px 18px;
+	color: var(--text-muted);
+}
+
+.dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+/* popover sheet (help text) */
+.sheet {
+	inline-size: min(380px, calc(100vw - 32px));
+	max-block-size: calc(100vh - 32px);
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-lg);
+}
+
+.sheet::backdrop {
+	background: rgb(0 0 0 / .3);
+}
+
+.sheet-header {
+	position: sticky;
+	inset-block-start: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px 10px 10px 16px;
+	background: var(--surface);
+	border-block-end: 1px solid var(--border);
+}
+
+.sheet-header h2 {
+	font-size: 14px;
+	font-weight: 650;
+}
+
+.sheet-body {
+	padding: 12px 16px 16px;
+	color: var(--text-muted);
+	font-size: 12px;
+	white-space: pre-line;
+}
+
+/* toast */
+.toast {
+	position: fixed;
+	inset: auto 16px 16px auto;
+	margin: 0;
+	align-items: center;
+	gap: 8px;
+	max-inline-size: min(420px, calc(100vw - 32px));
+	padding: 8px 8px 8px 14px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: light-dark(#26262b, #ececef);
+	color: light-dark(#ffffff, #18181b);
+	box-shadow: var(--shadow-lg);
+	opacity: 0;
+	translate: 0 8px;
+	transition: opacity .2s, translate .2s, display .2s, overlay .2s;
+	transition-behavior: allow-discrete;
+}
+
+/* display only while open: an unconditional display would override the closed popover's display: none */
+.toast:popover-open {
+	display: flex;
+	opacity: 1;
+	translate: 0 0;
+}
+
+@starting-style {
+	.toast:popover-open {
+		opacity: 0;
+		translate: 0 8px;
+	}
+}
+
+.toast .icon-btn {
+	color: inherit;
+	inline-size: 28px;
+	block-size: 28px;
+}
+
+.toast .icon-btn:hover {
+	background: rgb(127 127 127 / .25);
+	color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		transition-duration: 0s !important;
+		animation-duration: 0s !important;
+	}
+}

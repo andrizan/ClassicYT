@@ -1,98 +1,121 @@
-const REPOSITORY_URL = 'https://github.com/andrizan/YouTubeRedux';
-const DONATE_URL = 'https://www.paypal.com/donate?hosted_button_id=MD9WRXSTLB49W';
-const allPages = document.querySelector('#all-pages');
-const leftArrow = document.querySelector('#left-arrow');
-const rightArrow = document.querySelector('#right-arrow');
+const CUSTOM = 'Custom'; //value of the "Custom..." option until the user applies their own value
+const TAB_STORAGE_KEY = 'classicyt.popupTab';
+const tabButtons = [...document.querySelectorAll('[role="tab"]')];
+const panels = document.querySelector('.panels');
 const slider = document.querySelector('input[type="range"]');
 const sliderControl = document.querySelector('.slider-control');
 const playerWidthSelect = document.querySelector('select[name="smallPlayerWidth"]');
 const titleFontSelect = document.querySelector('select[name="titleFontValue"]');
 const languageSelect = document.querySelector('select[name="language"]');
+const restoreDialog = document.querySelector('#restore-dialog');
 let currentSettings;
 
 document.querySelector('#version').textContent = `v${browser.runtime.getManifest().version}`;
 
-document.querySelector('#donate').onclick = function() {
-	window.open(DONATE_URL);
-};
-
-document.querySelector('#github-button').onclick = function() {
-	window.open(REPOSITORY_URL);
-};
-
+/* Controls that only apply while their parent setting is on; they sit in the .subsettings-container after its row. */
 function getSubsettings(setting) {
-	const container = setting.parentElement.nextElementSibling;
+	const container = setting.closest('.row')?.nextElementSibling;
 	if (container == null || !container.classList.contains('subsettings-container')) return [];
-	return container.querySelectorAll('.subsetting input[type="checkbox"]');
+	return container.querySelectorAll('.subsetting input, .subsetting select, .subsetting button');
 }
 
 document.querySelectorAll('.settings:not(.slider-control)').forEach(setting => {
 	setting.addEventListener('change', function() {
-		getSubsettings(this).forEach(element => {
-			if (this.checked) {
-				element.removeAttribute('disabled');
-			} else {
-				element.setAttribute('disabled', '');
-				element.checked = false;
-			}
-		});
+		if (this.type === 'checkbox') {
+			getSubsettings(this).forEach(element => {
+				element.disabled = !this.checked;
+				if (!this.checked && element.type === 'checkbox') element.checked = false;
+			});
+		}
 		saveSettings();
 	});
 });
 
-slider.addEventListener('change', function() {
+slider.addEventListener('input', function() {
 	sliderControl.value = this.value;
-	saveSettings();
 });
 
 sliderControl.addEventListener('change', function() {
 	slider.value = this.value;
+	this.value = slider.value; //the range clamps out-of-bounds values
 	saveSettings();
 });
 
 languageSelect.addEventListener('change', applyLanguage);
 
-//navigation buttons
-function showPage(page) {
-	allPages.setAttribute('active-page', page);
-	allPages.style.transform = `translateX(-${(page - 1)*100}%)`;
-	leftArrow.toggleAttribute('disabled', page <= 1);
-	rightArrow.toggleAttribute('disabled', page >= 3);
+//tabs: selection follows focus, arrow keys move between tabs
+function panelOf(tab) {
+	return document.querySelector(`[role="tabpanel"][aria-labelledby="${tab.id}"]`);
 }
 
-rightArrow.addEventListener('click', function() {
-	if (this.hasAttribute('disabled')) {
-		return;
+function selectTab(tab, { focus = false, scrollToTop = false } = {}) {
+	for (const other of tabButtons) {
+		const selected = other === tab;
+		other.setAttribute('aria-selected', String(selected));
+		other.tabIndex = selected ? 0 : -1;
+		panelOf(other).hidden = selected ? false : 'until-found';
 	}
-
-	const page = Number(allPages.getAttribute('active-page')) + 1;
-	showPage(page);
-
-	if (page >= 3 && !currentSettings.completedSettingsTutorial) {
-		document.querySelector("input[name='completedSettingsTutorial']").checked = true;
-		this.classList.remove("glow");
-		saveSettings();
+	if (focus) tab.focus();
+	if (scrollToTop) panels.scrollTop = 0;
+	try {
+		localStorage.setItem(TAB_STORAGE_KEY, tab.id);
+	} catch (error) {
+		//storage may be unavailable; the popup then always opens on the first tab
 	}
+}
+
+tabButtons.forEach(tab => {
+	tab.addEventListener('click', () => selectTab(tab, { scrollToTop: true }));
+	//find-in-page reveals a hidden="until-found" panel; select its tab to match
+	panelOf(tab).addEventListener('beforematch', () => selectTab(tab));
 });
 
-leftArrow.addEventListener('click', function() {
-	if (this.hasAttribute('disabled')) {
-		return;
-	}
-
-	showPage(Number(allPages.getAttribute('active-page')) - 1);
+document.querySelector('[role="tablist"]').addEventListener('keydown', event => {
+	const index = tabButtons.indexOf(document.activeElement);
+	if (index < 0) return;
+	const target = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: tabButtons.length - 1 }[event.key];
+	if (target === undefined) return;
+	event.preventDefault();
+	selectTab(tabButtons[(target + tabButtons.length) % tabButtons.length], { focus: true, scrollToTop: true });
 });
+
+function restoreTab() {
+	let id = null;
+	try {
+		id = localStorage.getItem(TAB_STORAGE_KEY);
+	} catch (error) {
+		//see selectTab
+	}
+	const tab = tabButtons.find(button => button.id === id);
+	if (tab) selectTab(tab);
+}
 
 //custom values for the font and small player size selects (the last option holds the custom value)
-function askForCustomValue(select, message, suggestion) {
+function setupCustomValue(select, form) {
 	const customOption = select.querySelector('option:last-child');
-	if (!customOption.selected) return;
-	const choice = prompt(message, suggestion);
-	if (choice != null && choice.trim() !== '') {
-		customOption.value = choice.trim();
-		saveSettings();
+	const input = form.querySelector('input');
+
+	function sync() {
+		form.hidden = !customOption.selected;
+		if (customOption.selected && customOption.value !== CUSTOM) input.value = customOption.value;
 	}
+
+	select.addEventListener('change', () => {
+		sync();
+		if (customOption.selected) input.focus();
+	});
+	form.addEventListener('submit', event => {
+		event.preventDefault();
+		const value = input.value.trim();
+		if (value === '') return;
+		customOption.value = value;
+		saveSettings();
+	});
+	return sync;
 }
+
+const syncPlayerWidth = setupCustomValue(playerWidthSelect, document.querySelector('#player-size-custom'));
+const syncTitleFont = setupCustomValue(titleFontSelect, document.querySelector('#title-font-custom'));
 
 function selectValue(select, value) {
 	select.value = value;
@@ -103,30 +126,15 @@ function selectValue(select, value) {
 	}
 }
 
-titleFontSelect.addEventListener('change', function() {
-	askForCustomValue(this, t('promptFont'), '\'Times New Roman\'');
-});
-
-playerWidthSelect.addEventListener('change', function() {
-	askForCustomValue(this, t('promptPlayerWidth'), '900');
-});
-
-//logo preview
-document.querySelectorAll('label.logo-label').forEach(element => {
-	const preview = document.querySelector('.logo-preview');
-	element.addEventListener('mouseenter', function() {
-		const logo = this.firstChild.value;
-		preview.querySelector('img').src = `/images/${logo}logo.${logo == 'XL' ? 'png' : 'svg'}`;
-		preview.style.display = 'flex';
-	});
-	element.addEventListener('mouseleave', function() {
-		preview.style.display = 'none';
-	});
-});
-
 //reset
-document.querySelector('#restore-defaults').addEventListener('click', async() => {
-	if (!confirm(t('confirmRestore'))) return;
+document.querySelector('#restore-defaults').addEventListener('click', () => {
+	restoreDialog.showModal();
+});
+
+restoreDialog.addEventListener('close', async() => {
+	const choice = restoreDialog.returnValue;
+	restoreDialog.returnValue = '';
+	if (choice !== 'restore') return;
 	await storage.clear();
 	const tabs = await browser.tabs.query({active: true, currentWindow: true});
 	if (tabs[0]) browser.tabs.reload(tabs[0].id);
@@ -138,19 +146,25 @@ document.querySelector('#export-config').addEventListener('click', () => {
 	browser.tabs.create({ url: './config.html' });
 });
 
+/* Visibility switches are on while the feature is shown, so they store the inverse (hide*) of their state. */
+function readCheckbox(element) {
+	return 'invert' in element.dataset ? !element.checked : element.checked;
+}
+
 function saveSettings() {
 	const newSettings = { ...currentSettings };
 	newSettings[slider.name] = slider.value;
 
-	document.querySelectorAll('input[type="checkbox"]').forEach(element => {
-		newSettings[element.name] = element.checked;
+	document.querySelectorAll('input[type="checkbox"].settings').forEach(element => {
+		newSettings[element.name] = readCheckbox(element);
 	});
 
-	document.querySelectorAll('select').forEach(element => {
-		newSettings[element.name] = element.value;
+	document.querySelectorAll('select.settings').forEach(element => {
+		//"Custom..." picked but no value applied yet: keep the previous value
+		newSettings[element.name] = element.value === CUSTOM ? currentSettings[element.name] : element.value;
 	});
 
-	document.querySelectorAll('input[type="radio"]:checked').forEach(element => {
+	document.querySelectorAll('input[type="radio"].settings:checked').forEach(element => {
 		newSettings[element.name] = element.value;
 	});
 
@@ -160,24 +174,27 @@ function saveSettings() {
 
 function getSettings() {
 	slider.value = currentSettings.gridItems;
-	sliderControl.value = currentSettings.gridItems;
+	sliderControl.value = slider.value;
 
-	document.querySelectorAll('input[type="checkbox"]').forEach(element => {
-		if (element.name in currentSettings) element.checked = !!currentSettings[element.name];
+	document.querySelectorAll('input[type="checkbox"].settings').forEach(element => {
+		if (!(element.name in currentSettings)) return;
+		const value = !!currentSettings[element.name];
+		element.checked = 'invert' in element.dataset ? !value : value;
 	});
 
 	selectValue(playerWidthSelect, String(currentSettings.smallPlayerWidth ?? 853));
 	selectValue(titleFontSelect, String(currentSettings.titleFontValue ?? 'Arial'));
 	languageSelect.value = currentSettings.language in reduxMessages ? currentSettings.language : 'auto';
+	syncPlayerWidth();
+	syncTitleFont();
 
 	for (const name of ['favicon', 'classicLogoChoice']) {
 		const radio = document.querySelector(`input[type="radio"][name="${name}"][value="${currentSettings[name]}"]`);
 		if (radio) radio.checked = true;
 	}
 
-	//enable subsettings of checked settings
-	document.querySelectorAll('.settings:not(.slider-control)').forEach(setting => {
-		if (!setting.checked) return;
+	//enable the subsettings of settings that are on
+	document.querySelectorAll('input[type="checkbox"].settings:checked').forEach(setting => {
 		getSubsettings(setting).forEach(element => element.removeAttribute('disabled'));
 	});
 }
@@ -187,7 +204,7 @@ function calculateSizeOptions() {
 		if (element.matches(':last-child')) {
 			element.textContent = t('custom');
 		} else {
-			element.textContent = `${element.value}x${Math.ceil(element.value / 1.78)}px`; //fixed at 16:9
+			element.textContent = `${element.value} × ${Math.ceil(element.value / 1.78)} px`; //fixed at 16:9
 		}
 	});
 }
@@ -199,12 +216,9 @@ function applyLanguage() {
 }
 
 //main
+restoreTab();
 loadSettings().then(settings => {
 	currentSettings = settings;
 	getSettings();
 	applyLanguage();
-
-	if (!currentSettings.completedSettingsTutorial) {
-		rightArrow.classList.add("glow");
-	}
 });
