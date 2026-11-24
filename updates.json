@@ -41,6 +41,16 @@
               "strict_min_version": "142.0"
             }
           }
+        },
+        {
+          "version": "3.14.2",
+          "update_link": "https://github.com/andrizan/YouTubeRedux/releases/download/v3.14.2/classicyt-3.14.2.xpi",
+          "update_hash": "sha256:3abd6101e53945fae408e75fb77a2025ace447f8e0c6a1fc42976ad17371e626",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "142.0"
+            }
+          }
         }
       ]
     }
