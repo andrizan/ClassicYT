@@ -637,6 +637,25 @@ function addCustomStyles() {
 			max-height: 24px;
 			height: 24px;
 		}
+		/* channel header: the other actions (Join, Community, ...) get the same small buttons as subscribe */
+		yt-flexible-actions-view-model .ytFlexibleActionsViewModelAction > button-view-model > :is(button, a) {
+			padding: 2px 8px !important;
+			max-height: 24px;
+			height: 24px;
+			border-radius: 0 !important;
+		}
+		:is(yt-subscribe-button-view-model > yt-animated-action button, yt-flexible-actions-view-model .ytFlexibleActionsViewModelAction > button-view-model > :is(button, a)) .ytSpecButtonShapeNextButtonTextContent {
+			font-size: 12px;
+		}
+		/* their 24px icons (e.g. the bell of a subscribed channel) would stick out of the small buttons */
+		:is(yt-subscribe-button-view-model > yt-animated-action button, yt-flexible-actions-view-model .ytFlexibleActionsViewModelAction > button-view-model > :is(button, a)) :is(.ytSpecButtonShapeNextIcon, .ytSpecButtonShapeNextSecondaryIcon) {
+			margin: -3px;
+			transform: scale(.75);
+		}
+		/* YouTube fixes the subscribe button's width at the size it measured; let it follow the small button */
+		yt-flexible-actions-view-model yt-subscribe-button-view-model {
+			width: auto !important;
+		}
 		ytd-channel-renderer #subscribe-button > ytd-subscribe-button-renderer > tp-yt-paper-button,
 		ytd-channel-renderer #subscribe-button > ytd-subscribe-button-renderer yt-button-shape > button {
 			margin-right: 10px;
@@ -650,21 +669,29 @@ function addCustomStyles() {
 		#subscribe-button > ytd-button-renderer:not(.style-primary) > a > tp-yt-paper-button:not([subscribed]):not([page-subtype="subscriptions"] #subscribe-button tp-yt-paper-button),
 		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) yt-button-shape > button:not(.ytSpecButtonShapeNextTonal):not([page-subtype="subscriptions"] #subscribe-button yt-button-shape > button),
 		#subscribe-button > ytd-button-renderer:not(.style-primary) yt-button-shape > button:not(.ytSpecButtonShapeNextTonal):not([page-subtype="subscriptions"] #subscribe-button yt-button-shape > button),
-		yt-subscribe-button-view-model button:not(.ytSpecButtonShapeNextTonal) {
+		yt-subscribe-button-view-model button:not(.ytSpecButtonShapeNextTonal),
+		yt-flexible-actions-view-model .ytFlexibleActionsViewModelAction > button-view-model > button.ytSpecButtonShapeNextFilled {
 			background-color: #f00 !important;
+		}
+		/* signed out, the channel header's Subscribe is a plain filled button instead of yt-subscribe-button-view-model */
+		yt-subscribe-button-view-model button:not(.ytSpecButtonShapeNextTonal),
+		yt-flexible-actions-view-model .ytFlexibleActionsViewModelAction > button-view-model > button.ytSpecButtonShapeNextFilled {
+			color: #fff !important;
 		}
 		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) > tp-yt-paper-button:not([subscribed]):not([page-subtype="subscriptions"] #subscribe-button tp-yt-paper-button):hover,
 		#subscribe-button > ytd-button-renderer:not(.style-primary) > a > tp-yt-paper-button:not([subscribed]):not([page-subtype="subscriptions"] #subscribe-button tp-yt-paper-button):hover,
 		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) yt-button-shape > button:not(.ytSpecButtonShapeNextTonal):not([page-subtype="subscriptions"] #subscribe-button yt-button-shape > button):hover,
 		#subscribe-button > ytd-button-renderer:not(.style-primary) yt-button-shape > button:not(.ytSpecButtonShapeNextTonal):not([page-subtype="subscriptions"] #subscribe-button yt-button-shape > button):hover,
-		yt-subscribe-button-view-model button:not(.ytSpecButtonShapeNextTonal):hover {
+		yt-subscribe-button-view-model button:not(.ytSpecButtonShapeNextTonal):hover,
+		yt-flexible-actions-view-model .ytFlexibleActionsViewModelAction > button-view-model > button.ytSpecButtonShapeNextFilled:hover {
 			background-color: #d90a17 !important;
 		}
 		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) > tp-yt-paper-button:not([subscribed]):not([page-subtype="subscriptions"] #subscribe-button tp-yt-paper-button)::before,
 		#subscribe-button > ytd-button-renderer:not(.style-primary) > a > tp-yt-paper-button:not([subscribed]):not([page-subtype="subscriptions"] #subscribe-button tp-yt-paper-button)::before,
 		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) yt-button-shape > button:not(.ytSpecButtonShapeNextTonal):not([page-subtype="subscriptions"] #subscribe-button yt-button-shape > button)::before,
 		#subscribe-button > ytd-button-renderer:not(.style-primary) yt-button-shape > button:not(.ytSpecButtonShapeNextTonal):not([page-subtype="subscriptions"] #subscribe-button yt-button-shape > button)::before,
-		yt-subscribe-button-view-model button:not(.ytSpecButtonShapeNextTonal)::before {
+		yt-subscribe-button-view-model button:not(.ytSpecButtonShapeNextTonal)::before,
+		yt-flexible-actions-view-model .ytFlexibleActionsViewModelAction > button-view-model > button.ytSpecButtonShapeNextFilled::before {
 				content: url('${browser.runtime.getURL('/images/sub-icon.png')}');
 				background-size: auto !important;
 				width: 16px !important;
@@ -2520,9 +2547,12 @@ function addCustomStyles() {
 			display: none !important;
 		}
 		`,
+		/* YouTube also uses feed nudges for the message it shows instead of an empty feed (signed out, watch history off),
+		   so only hide the ones in a feed that has videos */
 		hideSurveys: () => `
 		#attached-survey,
-		ytd-feed-nudge-renderer {
+		ytd-feed-nudge-renderer:not(ytd-rich-grid-renderer *),
+		ytd-rich-grid-renderer:has(ytd-rich-item-renderer) ytd-feed-nudge-renderer {
 			display: none !important;
 		}
 		`,
