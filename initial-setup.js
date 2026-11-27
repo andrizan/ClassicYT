@@ -673,8 +673,7 @@ function addCustomStyles() {
 		}
 		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) > tp-yt-paper-button[subscribed]::before,
 		#subscribe-button > ytd-button-renderer:not(.style-primary) > a > tp-yt-paper-button[subscribed]::before,
-		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) yt-button-shape > button.ytSpecButtonShapeNextTonal::before,
-		#notification-preference-button yt-button-shape > button.ytSpecButtonShapeNextTonal::before {
+		#subscribe-button > ytd-subscribe-button-renderer:not(.style-primary) #subscribe-button-shape > button.ytSpecButtonShapeNextTonal::before {
 			content: "";
 			border-right: 1px solid #909090;
 			border-bottom: 1px solid #909090;
@@ -700,13 +699,28 @@ function addCustomStyles() {
 			padding: 0; 
 			margin-right: 5px;
 		}
-		#notification-preference-button > ytd-subscription-notification-toggle-button-renderer-next > yt-button-shape > button > div:last-of-type {
+		/* subscribed: YouTube now shows an icon-only bell button and hides the "Subscribed" text button;
+		   show both again, as the classic "✓ Subscribed" button with a small bell next to it */
+		#subscribe-button > ytd-subscribe-button-renderer[subscribed] .ytSmartImationsContent {
+			display: flex;
+			align-items: center;
+		}
+		#subscribe-button > ytd-subscribe-button-renderer[subscribed] #subscribe-button-shape {
+			position: static !important;
+			visibility: visible !important;
+		}
+		#subscribe-button > ytd-subscribe-button-renderer #notification-preference-button yt-button-shape > button {
+			width: 24px;
+			min-width: 24px;
+			padding: 0 !important;
+			justify-content: center;
+		}
+		#notification-preference-button yt-button-shape > button .ytSpecButtonShapeNextSecondaryIcon {
 			display: none;
 		}
-		#notification-preference-button > ytd-subscription-notification-toggle-button-renderer-next > yt-button-shape > button > div:first-of-type {
-			order: 2;
+		#notification-preference-button yt-button-shape > button .ytSpecButtonShapeNextIcon {
 			margin: 0;
-			transform: translateX(8px);
+			transform: scale(.75);
 		}
 		/* Sign in masthead button */
 		#masthead #end ytd-button-renderer {
@@ -785,9 +799,6 @@ function addCustomStyles() {
             display: flex !important;
             margin-top: 5px !important;
         }
-		#reduxSubDiv [subscribed] #subscribe-button-shape {
-			display: none;
-		}
 		html:not([dark]) ytd-subscription-notification-toggle-button-renderer-next lottie-component g > path {
 			fill: #606060;
 		}
@@ -1298,16 +1309,8 @@ function addCustomStyles() {
 		html[dark] #reduxSubDiv button.ytSpecButtonShapeNextTonal {
 			border: 1px solid var(--redux-spec-10-percent-layer);
 		}
-		#notification-preference-button yt-button-shape > button.ytSpecButtonShapeNextTonal::after {
-			content: "";
-			position: absolute;
-			right: 0;
-			height: 24px;
-			width: 24px;
-			border-left: 1px solid #ccc;
-		}
-		html[dark] #notification-preference-button yt-button-shape > button.ytSpecButtonShapeNextTonal::after {
-			border-left: 1px solid var(--redux-spec-10-percent-layer);
+		#reduxSubDiv #notification-preference-button yt-button-shape > button.ytSpecButtonShapeNextTonal {
+			border-left: 0;
 		}
 		`,
 		blackBars: () => `
