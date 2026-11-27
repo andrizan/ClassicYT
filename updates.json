@@ -81,6 +81,16 @@
               "strict_min_version": "142.0"
             }
           }
+        },
+        {
+          "version": "3.16.2",
+          "update_link": "https://github.com/andrizan/ClassicYT/releases/download/v3.16.2/classicyt-3.16.2.xpi",
+          "update_hash": "sha256:0137bc21818a22e13ddebd67c1155696ead3bea76d1809147b32a24dd02e42fd",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "142.0"
+            }
+          }
         }
       ]
     }
